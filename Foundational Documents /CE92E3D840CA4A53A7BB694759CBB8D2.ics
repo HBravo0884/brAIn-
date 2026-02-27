@@ -1,0 +1,21 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//www.SignUpGenius.com
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+PRIORITY:5
+CLASS:PUBLIC
+UID:2F43DB2483F847EA9227EA01397352BC
+DTSTART:20260218T150000Z
+DTEND:20260218T183000Z
+DTSTAMP:20260218T142521Z
+SUMMARY:HU Workday Requester Training 2026
+DESCRIPTION:Name: Hector Bravo\nSigned Up For: \nAvailable Seats - 1\n\nView Sign Up Form: https://www.signupgenius.com/go/20F0A4FADA923A2FA7-61464067-huworkday\nEvent Contact: monica.gibsonblackw@howard.edu,sanjay.shrestha@howard.edu\nSign Up Contact: Sanjay Shrestha monica.gibsonblackw@howard.edu
+LOCATION:
+URL:https://www.signupgenius.com/go/20F0A4FADA923A2FA7-61464067-huworkday
+SEQUENCE:0
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+END:VCALENDAR

@@ -1,0 +1,38 @@
+{
+  "name": "program-manager-hub",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@hello-pangea/dnd": "^16.6.0",
+    "date-fns": "^3.3.1",
+    "docx": "^8.5.0",
+    "frappe-gantt": "^0.6.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.50.0",
+    "react-router-dom": "^6.22.0",
+    "reactflow": "^11.10.4",
+    "recharts": "^2.12.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.1.4",
+    "vite-plugin-pwa": "^1.2.0"
+  }
+}

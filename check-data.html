@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check PM Hub Data</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        h2 { color: #2563eb; }
+        pre { background: #f3f4f6; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .count { font-size: 24px; font-weight: bold; color: #059669; }
+    </style>
+</head>
+<body>
+    <h1>Program Manager Hub - Data Check</h1>
+
+    <div class="section">
+        <h2>Budgets</h2>
+        <div id="budgets"></div>
+    </div>
+
+    <div class="section">
+        <h2>Expenses</h2>
+        <div id="expenses"></div>
+    </div>
+
+    <div class="section">
+        <h2>Documents</h2>
+        <div id="documents"></div>
+    </div>
+
+    <div class="section">
+        <h2>Grants</h2>
+        <div id="grants"></div>
+    </div>
+
+    <script>
+        // Read from localStorage
+        const budgets = JSON.parse(localStorage.getItem('pm_hub_budgets') || '[]');
+        const documents = JSON.parse(localStorage.getItem('pm_hub_documents') || '[]');
+        const grants = JSON.parse(localStorage.getItem('pm_hub_grants') || '[]');
+
+        // Display budgets
+        document.getElementById('budgets').innerHTML = `
+            <p class="count">${budgets.length} budget(s) found</p>
+            <pre>${JSON.stringify(budgets, null, 2)}</pre>
+        `;
+
+        // Extract and display all expenses
+        let allExpenses = [];
+        budgets.forEach(budget => {
+            budget.categories?.forEach(cat => {
+                cat.miniPools?.forEach(pool => {
+                    pool.expenses?.forEach(exp => {
+                        allExpenses.push({
+                            budget: budget.id,
+                            category: cat.name,
+                            pool: pool.name,
+                            ...exp
+                        });
+                    });
+                });
+            });
+        });
+
+        document.getElementById('expenses').innerHTML = `
+            <p class="count">${allExpenses.length} expense(s) found</p>
+            <pre>${JSON.stringify(allExpenses, null, 2)}</pre>
+        `;
+
+        // Display documents
+        document.getElementById('documents').innerHTML = `
+            <p class="count">${documents.length} document(s) found</p>
+            <pre>${JSON.stringify(documents, null, 2)}</pre>
+        `;
+
+        // Display grants
+        document.getElementById('grants').innerHTML = `
+            <p class="count">${grants.length} grant(s) found</p>
+            <pre>${JSON.stringify(grants, null, 2)}</pre>
+        `;
+    </script>
+</body>
+</html>
