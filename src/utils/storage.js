@@ -166,7 +166,9 @@ export const storage = {
       meetings: this.getMeetings(),
       todos: this.getTodos(),
       settings: this.getSettings(),
+      knowledgeDocs: this.getKnowledgeDocs(),
       exportDate: new Date().toISOString(),
+      version: '1.0',
     };
   },
 
@@ -184,6 +186,7 @@ export const storage = {
       if (data.meetings) this.setMeetings(data.meetings);
       if (data.todos) this.setTodos(data.todos);
       if (data.settings) this.setSettings(data.settings);
+      if (data.knowledgeDocs) this.setKnowledgeDocs(data.knowledgeDocs);
       return true;
     } catch (error) {
       console.error('Error importing data:', error);
