@@ -4,7 +4,7 @@ import { storage } from '../utils/storage';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database } from 'lucide-react';
+import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff } from 'lucide-react';
 
 const Settings = () => {
   const { settings, setSettings } = useApp();
@@ -24,6 +24,26 @@ const Settings = () => {
   const [importStatus, setImportStatus] = useState(null); // null | 'success' | 'error'
   const [importMsg, setImportMsg] = useState('');
   const fileInputRef = useRef(null);
+
+  // API Key state
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('brain_anthropic_api_key') || '';
+    setApiKey(stored);
+  }, []);
+
+  const handleSaveApiKey = () => {
+    if (apiKey.trim()) {
+      localStorage.setItem('brain_anthropic_api_key', apiKey.trim());
+    } else {
+      localStorage.removeItem('brain_anthropic_api_key');
+    }
+    setApiKeySaved(true);
+    setTimeout(() => setApiKeySaved(false), 3000);
+  };
 
   // Load user profile from settings on mount
   useEffect(() => {
@@ -216,6 +236,60 @@ const Settings = () => {
 
         {/* Info Panel */}
         <div className="space-y-6">
+          {/* API Key Card */}
+          <Card>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <Key size={20} className="text-primary-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Claude AI Key</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Required for AI features</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder="sk-ant-..."
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-400 outline-none font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(v => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  title={showApiKey ? 'Hide key' : 'Show key'}
+                >
+                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <button
+                onClick={handleSaveApiKey}
+                className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {apiKeySaved
+                  ? <><CheckCheck size={16} /> Saved!</>
+                  : <><Save size={16} /> Save API Key</>
+                }
+              </button>
+              {apiKey && (
+                <p className="text-xs text-green-600 text-center">
+                  Key configured — AI features are active
+                </p>
+              )}
+              {!apiKey && (
+                <p className="text-xs text-amber-600 text-center">
+                  No key set — AI features are disabled
+                </p>
+              )}
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Stored locally in your browser only. Never sent anywhere except directly to Anthropic.
+              </p>
+            </div>
+          </Card>
+
           <Card>
             <div className="flex items-start gap-3 mb-4">
               <div className="p-2 bg-blue-100 rounded-lg">

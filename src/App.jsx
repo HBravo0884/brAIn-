@@ -6,6 +6,8 @@ import Templates from './pages/Templates';
 import Grants from './pages/Grants';
 import Budget from './pages/Budget';
 import PaymentRequests from './pages/PaymentRequests';
+import TravelRequests from './pages/TravelRequests';
+import GiftCardDistributions from './pages/GiftCardDistributions';
 import Workflows from './pages/Workflows';
 import Meetings from './pages/Meetings';
 import Documents from './pages/Documents';
@@ -25,6 +27,8 @@ function App() {
             <Route path="/grants" element={<Grants />} />
             <Route path="/budget" element={<Budget />} />
             <Route path="/payment-requests" element={<PaymentRequests />} />
+            <Route path="/travel-requests" element={<TravelRequests />} />
+            <Route path="/gift-cards" element={<GiftCardDistributions />} />
             <Route path="/workflows" element={<Workflows />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/templates" element={<Templates />} />

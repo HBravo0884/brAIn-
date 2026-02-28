@@ -3,10 +3,13 @@ import Anthropic from '@anthropic-ai/sdk';
 // IMPORTANT: For production, move API key to backend/environment variables
 // Never expose API keys in frontend code
 const getClaudeClient = () => {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  // Prefer user-configured key from Settings, fall back to .env
+  const apiKey =
+    localStorage.getItem('brain_anthropic_api_key') ||
+    import.meta.env.VITE_ANTHROPIC_API_KEY;
 
   if (!apiKey) {
-    console.warn('Anthropic API key not found. Set VITE_ANTHROPIC_API_KEY in .env file');
+    console.warn('Anthropic API key not found. Add it in Settings or set VITE_ANTHROPIC_API_KEY in .env');
     return null;
   }
 
@@ -31,7 +34,7 @@ export const askClaude = async (prompt, options = {}) => {
 
   try {
     const message = await client.messages.create({
-      model: options.model || 'claude-sonnet-4-5-20250929',
+      model: options.model || 'claude-sonnet-4-5',
       max_tokens: options.max_tokens || 4096,
       messages: [{
         role: 'user',
@@ -849,7 +852,7 @@ export const extractTextFromFile = async (file) => {
   return response.content[0].text.trim();
 };
 
-const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = []) => {
+const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = [], meetings = [], personnel = []) => {
   const today = new Date().toISOString().split('T')[0];
 
   const grantsText = grants.length === 0
@@ -879,6 +882,22 @@ const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = []) => 
         `  [${t.id}] "${t.title}" | ${t.status} | ${t.priority}` +
         (t.dueDate ? ` | Due: ${t.dueDate}` : '') +
         (t.assignee ? ` | ${t.assignee}` : '')
+      ).join('\n');
+
+  const meetingsText = meetings.length === 0
+    ? '(No meetings)'
+    : meetings.slice(-20).map(m => {
+        const grantName = grants.find(g => g.id === m.grantId)?.title || '';
+        return `  "${m.title}" | ${m.date ? m.date.split('T')[0] : 'no date'}${grantName ? ` | ${grantName}` : ''}` +
+          (m.attendees ? ` | Attendees: ${m.attendees}` : '') +
+          (m.actionItems ? `\n    Action items: ${m.actionItems.slice(0, 120)}` : '');
+      }).join('\n');
+
+  const personnelText = personnel.length === 0
+    ? '(No personnel)'
+    : personnel.map(p =>
+        `  ${p.firstName} ${p.lastName} | ${p.role || ''} | ${p.department || ''} | ${p.email || ''}` +
+        (p.type ? ` | Type: ${p.type}` : '')
       ).join('\n');
 
   // Knowledge Base context
@@ -940,6 +959,12 @@ ${budgetsText}
 KANBAN TASKS:
 ${tasksText}
 
+MEETINGS (recent 20):
+${meetingsText}
+
+PERSONNEL DIRECTORY:
+${personnelText}
+
 === GRT000937 KEY REMINDERS ===
 - P-Card: reconcile in PaymentNet by the 15th of every month
 - Travel: Spend Authorization must be created 30+ days before departure
@@ -969,7 +994,7 @@ export const askClaudeWithGlobalTools = async (
   const client = getClaudeClient();
   if (!client) throw new Error('Claude API client not initialized. Check your API key.');
 
-  const { grants = [], budgets = [], tasks = [], knowledgeDocs = [] } = context;
+  const { grants = [], budgets = [], tasks = [], knowledgeDocs = [], meetings = [], personnel = [] } = context;
   const {
     onCreateTasks, onUpdateTasks, onDeleteTasks,
     onUpdateGrant, onUpdateBudget,
@@ -977,7 +1002,7 @@ export const askClaudeWithGlobalTools = async (
     onUpdateMiniPool, onDeleteMiniPool,
   } = toolCallbacks;
 
-  const systemPrompt = buildGlobalSystemPrompt(grants, budgets, tasks, knowledgeDocs);
+  const systemPrompt = buildGlobalSystemPrompt(grants, budgets, tasks, knowledgeDocs, meetings, personnel);
   const toolCalls = [];
 
   // Build user content — may include file attachment blocks

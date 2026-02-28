@@ -17,6 +17,8 @@ import {
   ListTodo,
   CalendarRange,
   Users,
+  Plane,
+  Gift,
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalSearch from './GlobalSearch';
@@ -40,6 +42,8 @@ const Layout = ({ children }) => {
     { path: '/meetings', icon: CalendarDays, label: 'Meetings', tooltip: 'Meetings — Log meeting notes, attendees, agendas, transcriptions, and action items per grant' },
     { path: '/personnel', icon: Users, label: 'Personnel', tooltip: 'Personnel — Organizational directory: team members, collaborators, and program officers with contact info and grant links' },
     { path: '/payment-requests', icon: CreditCard, label: 'Payments', tooltip: 'Payment Requests — Create and track payment request forms (PRFs) linked to grant budgets' },
+    { path: '/travel-requests', icon: Plane, label: 'Travel', tooltip: 'Travel Requests — 4-phase SOP tracker: Application → Spend Auth → CBT Booking → Post-Travel expense report' },
+    { path: '/gift-cards', icon: Gift, label: 'Gift Cards', tooltip: 'Gift Card Distributions — Log and track Aim 5 participant support gift cards for compliance. Always use "Participant Support Costs" spend category.' },
     { path: '/templates', icon: FileText, label: 'Templates', tooltip: 'Templates — Build and reuse document templates for grant applications, reports, and payment requests' },
     { path: '/quick-todo', icon: ListTodo, label: 'Quick To-Do', tooltip: 'Quick To-Do — Lightweight personal checklist for quick reminders that don\'t need a full task card' },
     { path: '/knowledge', icon: BookMarked, label: 'Knowledge', tooltip: 'Knowledge Base — Upload policies, SOPs, and email threads so the AI assistant can reference them' },

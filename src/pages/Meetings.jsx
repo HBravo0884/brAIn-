@@ -108,7 +108,7 @@ ${meeting.actionItems || 'None'}
 
   const getGrantName = (grantId) => {
     const grant = grants.find(g => g.id === grantId);
-    return grant ? grant.name : 'No grant linked';
+    return grant ? grant.title : 'No grant linked';
   };
 
   const formatDate = (dateString) => {
@@ -440,7 +440,7 @@ ${meeting.actionItems || 'None'}
                       <option value="">No grant linked</option>
                       {grants.map((grant) => (
                         <option key={grant.id} value={grant.id}>
-                          {grant.name}
+                          {grant.title}
                         </option>
                       ))}
                     </select>

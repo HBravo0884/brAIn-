@@ -88,7 +88,7 @@ function MessageBubble({ msg }) {
 // ── Main component ────────────────────────────────────────────────────────────
 const GlobalAIEditor = () => {
   const {
-    grants, budgets, tasks, knowledgeDocs,
+    grants, budgets, tasks, knowledgeDocs, meetings, personnel,
     updateGrant, updateBudget,
     addTask, updateTask, deleteTask,
   } = useApp();
@@ -221,7 +221,7 @@ const GlobalAIEditor = () => {
       const { reply, toolCalls, newHistory } = await askClaudeWithGlobalTools(
         effectiveText,
         conversationHistory,
-        { grants, budgets, tasks, knowledgeDocs },
+        { grants, budgets, tasks, knowledgeDocs, meetings, personnel },
         {
           onCreateTasks:    handleCreateTasks,
           onUpdateTasks:    handleUpdateTasks,
