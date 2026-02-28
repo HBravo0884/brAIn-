@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary — Rich Teal
+        // Primary — Rich Teal (action color)
         primary: {
           50:  '#f0fdfa',
           100: '#ccfbf1',
@@ -20,24 +20,26 @@ export default {
           800: '#115e59',
           900: '#134e4a',
         },
-        // Secondary — Warm Amber / Gold
+        // Secondary — Warm Amber/Gold (from brain icon)
         secondary: {
-          50:  '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f',
+          50:  '#fefce8',
+          100: '#fef9c3',
+          200: '#fde4a8',  // lightest brain gold
+          300: '#fcd085',
+          400: '#f9b84a',
+          500: '#e8a030',
+          600: '#cc9e5c',  // average brain gold
+          700: '#a87840',
+          800: '#8a5e2e',
+          900: '#6b4420',
         },
-        // Surface — warm off-white backgrounds
+        // Surface — warm golden cream backgrounds (brain icon palette)
         surface: {
-          50:  '#faf9f7',
-          100: '#f5f3ef',
-          200: '#ede9e3',
+          50:  '#fffdf7',   // almost white with warmth
+          100: '#fef8ec',   // very light gold — main app bg
+          200: '#fdf0d5',   // light gold — sidebar / panels
+          300: '#fde4a8',   // brain icon light gold
+          400: '#f9c96a',   // deeper gold accent
         },
         success: '#059669',
         warning: '#d97706',

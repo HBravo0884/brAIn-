@@ -12,7 +12,7 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f3ef;
+  background-color: #fef8ec;
   color: #1a2e2b;
 }
 
@@ -22,7 +22,7 @@ body {
   }
 
   .btn-secondary {
-    @apply bg-surface-200 hover:bg-surface-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all transform active:scale-95 hover:scale-105 border border-gray-200;
+    @apply bg-surface-200 hover:bg-surface-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all transform active:scale-95 hover:scale-105 border border-secondary-300;
   }
 
   .btn-danger {
@@ -30,11 +30,11 @@ body {
   }
 
   .card {
-    @apply rounded-xl shadow-sm bg-white p-6 border border-gray-100;
+    @apply rounded-xl shadow-sm bg-white p-6 border border-secondary-200;
   }
 
   .input {
-    @apply w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-400 focus:border-transparent outline-none transition-all bg-white;
+    @apply w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-400 focus:border-transparent outline-none transition-all bg-white;
   }
 
   .label {
@@ -42,18 +42,18 @@ body {
   }
 }
 
-/* Scrollbar styling */
+/* Scrollbar — teal on gold */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f5f3ef;
+  background: #fef8ec;
 }
 ::-webkit-scrollbar-thumb {
-  background: #99f6e4;
+  background: #2dd4bf;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #14b8a6;
+  background: #0d9488;
 }

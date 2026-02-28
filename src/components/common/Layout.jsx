@@ -40,16 +40,16 @@ const Layout = ({ children }) => {
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-20'
-        } bg-white shadow-lg transition-all duration-300 flex flex-col`}
+        } bg-surface-200 shadow-lg transition-all duration-300 flex flex-col border-r border-secondary-300`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-4 border-b border-secondary-300 flex items-center justify-between">
           {sidebarOpen && (
-            <h1 className="text-xl font-bold text-primary-600">brAIn</h1>
+            <h1 className="text-xl font-bold text-primary-700">brAIn</h1>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-300 rounded-lg transition-colors"
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -85,8 +85,8 @@ const Layout = ({ children }) => {
 
         {/* Footer */}
         {sidebarOpen && (
-          <div className="p-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="p-4 border-t border-secondary-300">
+            <p className="text-xs text-primary-700 text-center font-medium">
               brAIn v1.0
             </p>
           </div>
@@ -96,7 +96,7 @@ const Layout = ({ children }) => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto flex flex-col">
         {/* Top Header */}
-        <div className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-40 shadow-sm">
+        <div className="bg-surface-200 border-b border-secondary-300 px-8 py-4 sticky top-0 z-40 shadow-sm">
           <div className="max-w-7xl mx-auto flex items-center gap-3">
             <div className="flex-1">
               <GlobalSearch />
