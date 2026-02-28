@@ -11,6 +11,10 @@ import {
   BookMarked,
   ClipboardList,
   FileInput,
+  CalendarDays,
+  CreditCard,
+  FileText,
+  ListTodo,
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalSearch from './GlobalSearch';
@@ -30,6 +34,10 @@ const Layout = ({ children }) => {
     { path: '/budget', icon: DollarSign, label: 'Budget', tooltip: 'Budget — Track spending against award budgets, log expenses, and import award letters' },
     { path: '/documents', icon: FolderOpen, label: 'Documents', tooltip: 'Documents — Store and organize grant documents, reports, and files' },
     { path: '/workflows', icon: Workflow, label: 'Kanban', tooltip: 'Kanban — Manage tasks on a drag-and-drop board: To Do, In Progress, Done' },
+    { path: '/meetings', icon: CalendarDays, label: 'Meetings', tooltip: 'Meetings — Log meeting notes, attendees, agendas, transcriptions, and action items per grant' },
+    { path: '/payment-requests', icon: CreditCard, label: 'Payments', tooltip: 'Payment Requests — Create and track payment request forms (PRFs) linked to grant budgets' },
+    { path: '/templates', icon: FileText, label: 'Templates', tooltip: 'Templates — Build and reuse document templates for grant applications, reports, and payment requests' },
+    { path: '/quick-todo', icon: ListTodo, label: 'Quick To-Do', tooltip: 'Quick To-Do — Lightweight personal checklist for quick reminders that don\'t need a full task card' },
     { path: '/knowledge', icon: BookMarked, label: 'Knowledge', tooltip: 'Knowledge Base — Upload policies, SOPs, and email threads so the AI assistant can reference them' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings', tooltip: 'Settings — Configure your API key, app preferences, and backup/restore your data' },
   ];
