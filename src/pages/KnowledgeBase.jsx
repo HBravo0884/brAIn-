@@ -51,10 +51,10 @@ function DocCard({ doc, onView, onDelete }) {
           <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">{doc.title}</h3>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={() => onView(doc)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="View">
+          <button onClick={() => onView(doc)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="View full document">
             <Eye size={14} />
           </button>
-          <button onClick={() => onDelete(doc.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+          <button onClick={() => onDelete(doc.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete this document from the knowledge base">
             <Trash2 size={14} />
           </button>
         </div>
@@ -610,12 +610,14 @@ const KnowledgeBase = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setShowEmailModal(true)}
+            title="Import Email — Paste a raw email thread and Claude will extract the participants, key decisions, and action items automatically"
             className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm"
           >
             <Mail size={15} /> Import Email
           </button>
           <button
             onClick={() => setShowAddModal(true)}
+            title="Add Document — Paste or upload a policy, SOP, or reference doc. The AI assistant will automatically reference it when answering your questions."
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
           >
             <Plus size={15} /> Add Document

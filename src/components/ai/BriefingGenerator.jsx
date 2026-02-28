@@ -158,6 +158,7 @@ const BriefingGenerator = ({ onClose }) => {
           </div>
           <button
             onClick={onClose}
+            title="Close"
             className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
           >
             <X size={18} className="text-white" />
@@ -217,6 +218,7 @@ const BriefingGenerator = ({ onClose }) => {
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
+            title="Generate a briefing document from your current app data — then copy it into NotebookLM as a source"
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-60 transition-all shadow-md"
           >
             {isGenerating ? (
@@ -247,6 +249,7 @@ const BriefingGenerator = ({ onClose }) => {
                 <div className="flex gap-2">
                   <button
                     onClick={handleCopy}
+                    title="Copy briefing text to clipboard — then paste it into NotebookLM as a new source"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
                   >
                     {copied ? <CheckCheck size={14} className="text-green-600" /> : <Copy size={14} />}
@@ -254,6 +257,7 @@ const BriefingGenerator = ({ onClose }) => {
                   </button>
                   <button
                     onClick={handleDownload}
+                    title="Download briefing as a .txt file you can upload to NotebookLM"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
                   >
                     <Download size={14} />

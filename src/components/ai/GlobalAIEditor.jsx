@@ -303,7 +303,7 @@ const GlobalAIEditor = () => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        title={isDragOver ? 'Drop to capture' : 'AI Assistant'}
+        title={isDragOver ? 'Drop file or text to capture action items' : 'AI Assistant — Ask questions, update grants, create tasks, fix budget entries, and more. You can also drag files onto this button.'}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 select-none ${
           isDragOver
             ? 'scale-125 ring-4 ring-indigo-400 bg-indigo-700'
@@ -342,10 +342,10 @@ const GlobalAIEditor = () => {
             </div>
             <div className="flex items-center gap-2">
               {loading && <Loader2 size={15} className="animate-spin text-white/70" />}
-              <button onClick={clearChat} className="text-white/70 hover:text-white text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors">
+              <button onClick={clearChat} title="Clear chat history and start fresh" className="text-white/70 hover:text-white text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors">
                 Clear
               </button>
-              <button onClick={() => setIsOpen(false)} className="text-white/70 hover:text-white transition-colors">
+              <button onClick={() => setIsOpen(false)} title="Close AI assistant" className="text-white/70 hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -459,6 +459,7 @@ const GlobalAIEditor = () => {
               <button
                 onClick={() => handleSend()}
                 disabled={(!input.trim() && attachedFiles.length === 0) || loading}
+                title="Send message (or press Enter)"
                 className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 shadow"
               >
                 <Send size={16} />
