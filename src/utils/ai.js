@@ -1222,6 +1222,97 @@ Now generate the briefing. Use markdown formatting with clear sections. Start wi
 };
 
 /**
+ * Parse NotebookLM output and propose structured updates to the app.
+ * Returns: { summary, newTasks, taskUpdates, grantUpdates, newKnowledgeDocs, generalInsights }
+ */
+export const parseNotebookLMOutput = async (notebookText, currentData) => {
+  const client = getClaudeClient();
+  if (!client) throw new Error('Claude API client not initialized. Check your API key.');
+
+  const { grants = [], tasks = [], knowledgeDocs = [] } = currentData;
+  const today = new Date().toISOString().split('T')[0];
+
+  const grantsCtx = grants.length === 0 ? '(none)' : grants.map(g =>
+    `[${g.id}] "${g.title}" | ${g.status || 'Active'} | $${(g.amount || 0).toLocaleString()} | ${g.fundingAgency || ''}`
+  ).join('\n');
+
+  const tasksCtx = tasks.length === 0 ? '(none)' : tasks.map(t =>
+    `[${t.id}] "${t.title}" | ${t.status} | ${t.priority || 'medium'}` +
+    (t.dueDate ? ` | due ${t.dueDate}` : '') +
+    (t.assignee ? ` | ${t.assignee}` : '')
+  ).join('\n');
+
+  const kbCtx = knowledgeDocs.length === 0 ? '(none)' : knowledgeDocs.map(d =>
+    `"${d.title}" [${d.category || 'doc'}]${d.summary ? ': ' + d.summary.slice(0, 100) : ''}`
+  ).join('\n');
+
+  const prompt = `You are an AI assistant for the RWJF Grant GRT000937 Program Manager Hub.
+Today: ${today}
+
+The user pasted output from a NotebookLM session. Analyze it against the current app data and produce a structured import proposal.
+
+=== CURRENT APP DATA ===
+
+GRANTS:
+${grantsCtx}
+
+KANBAN TASKS:
+${tasksCtx}
+
+KNOWLEDGE BASE:
+${kbCtx}
+
+=== NOTEBOOKLM OUTPUT ===
+${notebookText.slice(0, 8000)}
+
+=== INSTRUCTIONS ===
+Identify:
+1. NEW tasks mentioned that don't exist in the current task list
+2. Updates needed to EXISTING tasks (status, due date, priority)
+3. Updates needed to EXISTING grants
+4. New knowledge docs worth saving (decisions, policy clarifications, meeting notes)
+5. General insights that don't fit other categories
+
+Return ONLY valid JSON (no markdown fences, no explanation):
+{
+  "summary": "1-2 sentence description of what was found",
+  "newTasks": [
+    { "title": "...", "description": "...", "priority": "low|medium|high", "dueDate": "YYYY-MM-DD or null", "assignee": "..." }
+  ],
+  "taskUpdates": [
+    { "taskId": "exact-id-from-data", "currentTitle": "...", "changes": { "status": "...", "priority": "...", "dueDate": "..." }, "reason": "..." }
+  ],
+  "grantUpdates": [
+    { "grantId": "exact-id-from-data", "currentTitle": "...", "changes": { "status": "...", "description": "..." }, "reason": "..." }
+  ],
+  "newKnowledgeDocs": [
+    { "title": "...", "category": "policy|sop|decision|meeting|reference|notes", "content": "...", "summary": "...", "tags": ["..."] }
+  ],
+  "generalInsights": ["insight 1", "insight 2"]
+}
+
+Rules:
+- Only use exact IDs from the data above — never invent IDs
+- If nothing found for a category, return empty array
+- Keep proposals minimal and accurate`;
+
+  const response = await client.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const raw = response.content[0].text.trim()
+    .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error('Could not parse AI response. Please try again.');
+  }
+};
+
+/**
  * Chat with Claude (general purpose)
  */
 export const chatWithClaude = async (userMessage, conversationHistory = []) => {
