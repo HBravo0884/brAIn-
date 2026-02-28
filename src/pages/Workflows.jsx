@@ -6,6 +6,7 @@ import KanbanBoard from '../components/workflows/KanbanBoard';
 import SOPReference from '../components/workflows/SOPReference';
 import WorkflowAIChat from '../components/workflows/WorkflowAIChat';
 import { Kanban, Calendar, BarChart3, Network, BookOpen } from 'lucide-react';
+import GanttChart from '../components/workflows/GanttChart';
 
 const Workflows = () => {
   const [activeView, setActiveView] = useState('kanban');
@@ -62,11 +63,7 @@ const Workflows = () => {
 
       {activeView === 'gantt' && (
         <Card>
-          <div className="text-center py-12">
-            <Calendar size={64} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Gantt Chart</h3>
-            <p className="text-gray-500">Timeline view of tasks (Coming Soon)</p>
-          </div>
+          <GanttChart />
         </Card>
       )}
 
