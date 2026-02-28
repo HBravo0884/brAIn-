@@ -7,6 +7,7 @@ import SOPReference from '../components/workflows/SOPReference';
 import WorkflowAIChat from '../components/workflows/WorkflowAIChat';
 import { Kanban, Calendar, BarChart3, Network, BookOpen } from 'lucide-react';
 import GanttChart from '../components/workflows/GanttChart';
+import ProgressDashboard from '../components/workflows/ProgressDashboard';
 
 const Workflows = () => {
   const [activeView, setActiveView] = useState('kanban');
@@ -69,11 +70,7 @@ const Workflows = () => {
 
       {activeView === 'dashboard' && (
         <Card>
-          <div className="text-center py-12">
-            <BarChart3 size={64} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Progress Dashboard</h3>
-            <p className="text-gray-500">Charts and metrics (Coming Soon)</p>
-          </div>
+          <ProgressDashboard />
         </Card>
       )}
 
