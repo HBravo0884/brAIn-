@@ -7,12 +7,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['brain-icon.svg'],
+      includeAssets: ['brain-icon.png'],
       manifest: {
         name: 'brAIn — Program Manager Hub',
         short_name: 'brAIn',
         description: 'RWJF Grant GRT000937 Program Manager AI Hub',
-        theme_color: '#4f46e5',
+        theme_color: '#5b8a8a',
         background_color: '#f9fafb',
         display: 'standalone',
         orientation: 'portrait',
@@ -20,17 +20,21 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'brain-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            src: 'brain-icon.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'brain-icon.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
       workbox: {
-        // Cache app shell & assets
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        // Don't cache Claude API calls
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
