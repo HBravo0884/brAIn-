@@ -11,6 +11,8 @@ import Meetings from './pages/Meetings';
 import Documents from './pages/Documents';
 import QuickToDo from './pages/QuickToDo';
 import KnowledgeBase from './pages/KnowledgeBase';
+import CalendarView from './pages/CalendarView';
+import Personnel from './pages/Personnel';
 import Settings from './pages/Settings';
 
 function App() {
@@ -29,6 +31,8 @@ function App() {
             <Route path="/documents" element={<Documents />} />
             <Route path="/quick-todo" element={<QuickToDo />} />
             <Route path="/knowledge" element={<KnowledgeBase />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/personnel" element={<Personnel />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>

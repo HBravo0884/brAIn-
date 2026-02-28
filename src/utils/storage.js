@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   TODOS: 'pm_hub_todos',
   SETTINGS: 'pm_hub_settings',
   KNOWLEDGE_DOCS: 'pm_hub_knowledge_docs',
+  PERSONNEL: 'pm_hub_personnel',
 };
 
 export const storage = {
@@ -147,6 +148,14 @@ export const storage = {
     return this.set(STORAGE_KEYS.KNOWLEDGE_DOCS, docs);
   },
 
+  getPersonnel() {
+    return this.get(STORAGE_KEYS.PERSONNEL) || [];
+  },
+
+  setPersonnel(personnel) {
+    return this.set(STORAGE_KEYS.PERSONNEL, personnel);
+  },
+
   // Clear all data
   clearAll() {
     Object.values(STORAGE_KEYS).forEach(key => this.remove(key));
@@ -167,6 +176,7 @@ export const storage = {
       todos: this.getTodos(),
       settings: this.getSettings(),
       knowledgeDocs: this.getKnowledgeDocs(),
+      personnel: this.getPersonnel(),
       exportDate: new Date().toISOString(),
       version: '1.0',
     };
@@ -187,6 +197,7 @@ export const storage = {
       if (data.todos) this.setTodos(data.todos);
       if (data.settings) this.setSettings(data.settings);
       if (data.knowledgeDocs) this.setKnowledgeDocs(data.knowledgeDocs);
+      if (data.personnel) this.setPersonnel(data.personnel);
       return true;
     } catch (error) {
       console.error('Error importing data:', error);

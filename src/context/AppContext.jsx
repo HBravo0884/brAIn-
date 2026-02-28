@@ -24,6 +24,7 @@ export const AppProvider = ({ children }) => {
   const [todos, setTodos] = useState([]);
   const [settings, setSettings] = useState({ theme: 'light', notifications: true });
   const [knowledgeDocs, setKnowledgeDocs] = useState([]);
+  const [personnel, setPersonnel] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Load data from localStorage on mount
@@ -41,6 +42,7 @@ export const AppProvider = ({ children }) => {
       setTodos(storage.getTodos());
       setSettings(storage.getSettings());
       setKnowledgeDocs(storage.getKnowledgeDocs());
+      setPersonnel(storage.getPersonnel());
       setLoading(false);
     };
     loadData();
@@ -129,6 +131,13 @@ export const AppProvider = ({ children }) => {
       storage.setKnowledgeDocs(knowledgeDocs);
     }
   }, [knowledgeDocs, loading]);
+
+  // Persist personnel to localStorage
+  useEffect(() => {
+    if (!loading) {
+      storage.setPersonnel(personnel);
+    }
+  }, [personnel, loading]);
 
   // Grant operations
   const addGrant = (grant) => {
@@ -338,6 +347,19 @@ export const AppProvider = ({ children }) => {
     setKnowledgeDocs(prev => prev.filter(d => d.id !== id));
   };
 
+  // Personnel operations
+  const addPerson = (person) => {
+    setPersonnel(prev => [...prev, { id: crypto.randomUUID(), ...person, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
+  };
+
+  const updatePerson = (id, updates) => {
+    setPersonnel(prev => prev.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p));
+  };
+
+  const deletePerson = (id) => {
+    setPersonnel(prev => prev.filter(p => p.id !== id));
+  };
+
   const addTodo = (todo) => {
     setTodos(prev => [...prev, todo]);
   };
@@ -399,6 +421,10 @@ export const AppProvider = ({ children }) => {
     addKnowledgeDoc,
     updateKnowledgeDoc,
     deleteKnowledgeDoc,
+    personnel,
+    addPerson,
+    updatePerson,
+    deletePerson,
     setSettings,
   };
 

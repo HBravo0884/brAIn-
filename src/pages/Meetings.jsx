@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText } from 'lucide-react';
+import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search } from 'lucide-react';
 
 const Meetings = () => {
   const { meetings, grants, addMeeting, updateMeeting, deleteMeeting } = useApp();
@@ -122,10 +122,50 @@ ${meeting.actionItems || 'None'}
     });
   };
 
+  const [transcriptSearch, setTranscriptSearch] = useState('');
+
   const getAttendeesCount = (attendees) => {
     if (!attendees) return 0;
     return attendees.split(',').filter(a => a.trim()).length;
   };
+
+  // Transcript / notes search across all meetings
+  const searchResults = useMemo(() => {
+    const q = transcriptSearch.trim().toLowerCase();
+    if (!q) return [];
+    return meetings
+      .filter(m =>
+        m.transcription?.toLowerCase().includes(q) ||
+        m.notes?.toLowerCase().includes(q) ||
+        m.agenda?.toLowerCase().includes(q) ||
+        m.title?.toLowerCase().includes(q) ||
+        m.attendees?.toLowerCase().includes(q)
+      )
+      .map(m => {
+        // find snippet around the keyword
+        const fields = [
+          { label: 'Transcription', text: m.transcription },
+          { label: 'Notes',         text: m.notes         },
+          { label: 'Agenda',        text: m.agenda        },
+        ];
+        let snippet = null;
+        for (const f of fields) {
+          const idx = f.text?.toLowerCase().indexOf(q);
+          if (idx !== -1) {
+            const start = Math.max(0, idx - 60);
+            const end   = Math.min(f.text.length, idx + q.length + 80);
+            snippet = {
+              field: f.label,
+              text:  (start > 0 ? '…' : '') + f.text.slice(start, end) + (end < f.text.length ? '…' : ''),
+              matchStart: idx - start + (start > 0 ? 1 : 0),
+              matchLen: q.length,
+            };
+            break;
+          }
+        }
+        return { meeting: m, snippet };
+      });
+  }, [transcriptSearch, meetings]);
 
   return (
     <div className="space-y-6">
@@ -143,6 +183,61 @@ ${meeting.actionItems || 'None'}
           New Meeting
         </button>
       </div>
+
+      {/* Transcript / notes search */}
+      <div className="relative mb-6">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search across all meeting transcripts, notes, and agendas…"
+          value={transcriptSearch}
+          onChange={e => setTranscriptSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+          title="Search for a keyword across every meeting's transcript, notes, and agenda"
+        />
+        {transcriptSearch && (
+          <button
+            onClick={() => setTranscriptSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Search results */}
+      {transcriptSearch && (
+        <div className="mb-6">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            {searchResults.length === 0
+              ? 'No meetings mention that keyword'
+              : `${searchResults.length} meeting${searchResults.length !== 1 ? 's' : ''} mention "${transcriptSearch}"`}
+          </p>
+          {searchResults.length > 0 && (
+            <div className="space-y-2">
+              {searchResults.map(({ meeting, snippet }) => (
+                <button
+                  key={meeting.id}
+                  onClick={() => handleOpenModal(meeting, true)}
+                  className="w-full text-left bg-white border border-primary-200 rounded-lg p-3 hover:border-primary-400 hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-gray-900 text-sm">{meeting.title}</span>
+                    <span className="text-xs text-gray-400">{formatDate(meeting.date)}</span>
+                  </div>
+                  {snippet && (
+                    <p className="text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 leading-relaxed">
+                      <span className="text-gray-400 mr-1">{snippet.field}:</span>
+                      {snippet.text}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+          <hr className="mt-4 border-gray-200" />
+        </div>
+      )}
 
       {/* Meetings Grid */}
       {meetings.length === 0 ? (
