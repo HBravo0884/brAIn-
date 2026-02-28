@@ -19,18 +19,21 @@ import {
   Users,
   Plane,
   Gift,
+  RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalSearch from './GlobalSearch';
 import GlobalAIEditor from '../ai/GlobalAIEditor';
 import BriefingGenerator from '../ai/BriefingGenerator';
 import NotebookLMImport from '../ai/NotebookLMImport';
+import DataSyncModal from './DataSyncModal';
 
 const Layout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showBriefing, setShowBriefing] = useState(false);
   const [showNbLMImport, setShowNbLMImport] = useState(false);
+  const [showSync, setShowSync] = useState(false);
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard — Overview of all grants, open tasks, budget summary, and recent activity' },
@@ -119,6 +122,15 @@ const Layout = ({ children }) => {
             <div className="flex-1">
               <GlobalSearch />
             </div>
+            {/* Data Sync */}
+            <button
+              onClick={() => setShowSync(true)}
+              title="Data Sync — Re-reads all data from storage, refreshes every view, and cleans any orphaned cross-references."
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-lg transition-colors shadow-sm whitespace-nowrap"
+            >
+              <RefreshCw size={15} />
+              Sync
+            </button>
             {/* Briefing OUT → NotebookLM */}
             <button
               onClick={() => setShowBriefing(true)}
@@ -150,6 +162,9 @@ const Layout = ({ children }) => {
       <GlobalAIEditor />
 
       {/* Modals */}
+      {showSync && (
+        <DataSyncModal onClose={() => setShowSync(false)} />
+      )}
       {showBriefing && (
         <BriefingGenerator onClose={() => setShowBriefing(false)} />
       )}

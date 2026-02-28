@@ -360,6 +360,99 @@ export const AppProvider = ({ children }) => {
     setPersonnel(prev => prev.filter(p => p.id !== id));
   };
 
+  // ── Data Sync & Scrub ───────────────────────────────────────────────────────
+  const syncAndScrub = () => {
+    // 1. Re-read all data fresh from localStorage
+    const freshGrants        = storage.getGrants();
+    const freshBudgets       = storage.getBudgets();
+    const freshTasks         = storage.getTasks();
+    const freshMeetings      = storage.getMeetings();
+    const freshPayments      = storage.getPaymentRequests();
+    const freshTravel        = storage.getTravelRequests();
+    const freshGiftCards     = storage.getGiftCardDistributions();
+    const freshPersonnel     = storage.getPersonnel();
+    const freshKnowledge     = storage.getKnowledgeDocs();
+    const freshTodos         = storage.getTodos();
+    const freshTemplates     = storage.getTemplates();
+    const freshDocuments     = storage.getDocuments();
+
+    const grantIds = new Set(freshGrants.map(g => g.id));
+    const report   = { cleaned: 0, items: [] };
+
+    const clearGrant = (obj, label) => {
+      if (obj.grantId && !grantIds.has(obj.grantId)) {
+        report.cleaned++;
+        report.items.push(`${label} — removed orphaned grant link`);
+        return { ...obj, grantId: '' };
+      }
+      return obj;
+    };
+
+    // 2. Clean orphaned grantId fields
+    const cleanedTasks    = freshTasks.map(t => clearGrant(t, `Task "${t.title}"`));
+    const cleanedMeetings = freshMeetings.map(m => clearGrant(m, `Meeting "${m.title}"`));
+    const cleanedPayments = freshPayments.map(p => clearGrant(p, `Payment "${p.vendor || p.id}"`));
+    const cleanedTravel   = freshTravel.map(t => clearGrant(t, `Travel "${t.travelerName}"`));
+    const cleanedGiftCards= freshGiftCards.map(g => clearGrant(g, `Gift Card "${g.recipientName}"`));
+    const cleanedBudgets  = freshBudgets.map(b => clearGrant(b, `Budget "${b.id}"`));
+
+    // Personnel can have an array of grantIds
+    const cleanedPersonnel = freshPersonnel.map(p => {
+      const before  = (p.grantIds || []).length;
+      const cleaned = (p.grantIds || []).filter(id => grantIds.has(id));
+      if (cleaned.length !== before) {
+        const diff = before - cleaned.length;
+        report.cleaned += diff;
+        report.items.push(`Personnel "${p.firstName} ${p.lastName}" — removed ${diff} orphaned grant link${diff !== 1 ? 's' : ''}`);
+      }
+      return { ...p, grantIds: cleaned };
+    });
+
+    // 3. Update all React state (triggers re-render of every subscribed component)
+    setGrants(freshGrants);
+    setBudgets(cleanedBudgets);
+    setTasks(cleanedTasks);
+    setMeetings(cleanedMeetings);
+    setPaymentRequests(cleanedPayments);
+    setTravelRequests(cleanedTravel);
+    setGiftCardDistributions(cleanedGiftCards);
+    setPersonnel(cleanedPersonnel);
+    setKnowledgeDocs(freshKnowledge);
+    setTodos(freshTodos);
+    setTemplates(freshTemplates);
+    setDocuments(freshDocuments);
+
+    // 4. Persist any cleaned data back to storage
+    if (report.cleaned > 0) {
+      storage.setBudgets(cleanedBudgets);
+      storage.setTasks(cleanedTasks);
+      storage.setMeetings(cleanedMeetings);
+      storage.setPaymentRequests(cleanedPayments);
+      storage.setTravelRequests(cleanedTravel);
+      storage.setGiftCardDistributions(cleanedGiftCards);
+      storage.setPersonnel(cleanedPersonnel);
+    }
+
+    return {
+      cleaned: report.cleaned,
+      items:   report.items,
+      counts: {
+        grants:       freshGrants.length,
+        budgets:      cleanedBudgets.length,
+        tasks:        cleanedTasks.length,
+        meetings:     cleanedMeetings.length,
+        payments:     cleanedPayments.length,
+        travel:       cleanedTravel.length,
+        giftCards:    cleanedGiftCards.length,
+        personnel:    cleanedPersonnel.length,
+        documents:    freshDocuments.length,
+        todos:        freshTodos.length,
+        templates:    freshTemplates.length,
+        knowledgeDocs:freshKnowledge.length,
+      },
+    };
+  };
+
   const addTodo = (todo) => {
     setTodos(prev => [...prev, todo]);
   };
@@ -426,6 +519,7 @@ export const AppProvider = ({ children }) => {
     updatePerson,
     deletePerson,
     setSettings,
+    syncAndScrub,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
