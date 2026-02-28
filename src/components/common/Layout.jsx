@@ -35,21 +35,21 @@ const Layout = ({ children }) => {
   ];
 
   return (
-    <div className="flex h-screen bg-surface-100">
+    <div className="flex h-screen bg-surface-50">
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-20'
-        } bg-surface-200 shadow-lg transition-all duration-300 flex flex-col border-r border-secondary-300`}
+        } bg-surface-100 shadow-lg transition-all duration-300 flex flex-col border-r border-surface-300`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-secondary-300 flex items-center justify-between">
+        <div className="p-4 border-b border-surface-300 flex items-center justify-between">
           {sidebarOpen && (
-            <h1 className="text-xl font-bold text-primary-700">brAIn</h1>
+            <h1 className="text-xl font-bold text-primary-600">brAIn</h1>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-surface-300 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-200 rounded-lg transition-colors text-gray-600"
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -69,7 +69,7 @@ const Layout = ({ children }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all transform hover:scale-105 ${
                       isActive
                         ? 'bg-primary-600 text-white shadow-md'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-surface-200'
                     }`}
                   >
                     <Icon size={20} />
@@ -85,8 +85,8 @@ const Layout = ({ children }) => {
 
         {/* Footer */}
         {sidebarOpen && (
-          <div className="p-4 border-t border-secondary-300">
-            <p className="text-xs text-primary-700 text-center font-medium">
+          <div className="p-4 border-t border-surface-300">
+            <p className="text-xs text-primary-600 text-center font-medium">
               brAIn v1.0
             </p>
           </div>
@@ -96,7 +96,7 @@ const Layout = ({ children }) => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto flex flex-col">
         {/* Top Header */}
-        <div className="bg-surface-200 border-b border-secondary-300 px-8 py-4 sticky top-0 z-40 shadow-sm">
+        <div className="bg-surface-100 border-b border-surface-300 px-8 py-4 sticky top-0 z-40 shadow-sm">
           <div className="max-w-7xl mx-auto flex items-center gap-3">
             <div className="flex-1">
               <GlobalSearch />

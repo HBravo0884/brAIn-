@@ -7,42 +7,53 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary — Rich Teal (action color)
+        // Primary — Deep Teal #097C87 (action color: buttons, nav, focus)
         primary: {
-          50:  '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
+          50:  '#f0f9fa',
+          100: '#d0ecef',
+          200: '#a1d8de',
+          300: '#5fbfca',
+          400: '#23ced9',   // bright cyan from palette
+          500: '#12a8b4',
+          600: '#097c87',   // deep teal — main
+          700: '#076570',
+          800: '#054e57',
+          900: '#033a42',
         },
-        // Secondary — Warm Amber/Gold (from brain icon)
+        // Secondary — Salmon #FCA47C (highlights, badges, accents)
         secondary: {
-          50:  '#fefce8',
-          100: '#fef9c3',
-          200: '#fde4a8',  // lightest brain gold
-          300: '#fcd085',
-          400: '#f9b84a',
-          500: '#e8a030',
-          600: '#cc9e5c',  // average brain gold
-          700: '#a87840',
-          800: '#8a5e2e',
-          900: '#6b4420',
+          50:  '#fff5f0',
+          100: '#fee8dc',
+          200: '#fdd0b8',
+          300: '#fcb898',
+          400: '#fca47c',   // salmon from palette
+          500: '#f88455',
+          600: '#e86535',
+          700: '#c44c22',
+          800: '#9e3a18',
+          900: '#7a2c12',
         },
-        // Surface — warm golden cream backgrounds (brain icon palette)
+        // Surface — Warm Yellow #F9D779 (backgrounds, panels)
         surface: {
-          50:  '#fffdf7',   // almost white with warmth
-          100: '#fef8ec',   // very light gold — main app bg
-          200: '#fdf0d5',   // light gold — sidebar / panels
-          300: '#fde4a8',   // brain icon light gold
-          400: '#f9c96a',   // deeper gold accent
+          50:  '#fefdf5',   // barely-yellow — main app bg
+          100: '#fdf8e1',   // light warm yellow — sidebar/header
+          200: '#fcf0b8',   // soft yellow — panels
+          300: '#f9d779',   // palette yellow — borders/dividers
+          400: '#f5c23a',   // deeper yellow accent
         },
-        success: '#059669',
-        warning: '#d97706',
+        // Sage — #A1CCA6 (success, gentle accents)
+        sage: {
+          50:  '#f4faf5',
+          100: '#dff0e2',
+          200: '#c2e0c6',
+          300: '#a1cca6',   // sage from palette
+          400: '#7db584',
+          500: '#5a9d62',
+          600: '#3d7d45',
+          700: '#2d5e33',
+        },
+        success: '#5a9d62',
+        warning: '#e86535',
         error:   '#dc2626',
       },
       fontFamily: {
