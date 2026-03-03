@@ -14,7 +14,8 @@ const Grants = () => {
   const { grants, addGrant, updateGrant, deleteGrant, addBudget } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGrant, setEditingGrant] = useState(null);
-  const [viewingGrant, setViewingGrant] = useState(null);
+  const [viewingGrantId, setViewingGrantId] = useState(null);
+  const viewingGrant = viewingGrantId ? grants.find(g => g.id === viewingGrantId) ?? null : null;
   const [formData, setFormData] = useState({
     title: '',
     fundingAgency: '',
@@ -102,7 +103,7 @@ const Grants = () => {
     return (
       <EnhancedGrantDetails
         grant={viewingGrant}
-        onClose={() => setViewingGrant(null)}
+        onClose={() => setViewingGrantId(null)}
       />
     );
   }
@@ -244,7 +245,7 @@ const Grants = () => {
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => setViewingGrant(grant)}
+                  onClick={() => setViewingGrantId(grant.id)}
                   className="flex-1"
                 >
                   <Eye size={16} className="mr-1" />
