@@ -1,6 +1,6 @@
 const Card = ({ children, title, subtitle, className = '', actions, ...props }) => {
   return (
-    <div className={`rounded-xl shadow-lg bg-white p-6 ${className}`} {...props}>
+    <div className={`rounded-xl shadow-sm border border-gray-200 bg-white p-6 ${className}`} {...props}>
       {(title || actions) && (
         <div className="flex items-start justify-between mb-4">
           <div>

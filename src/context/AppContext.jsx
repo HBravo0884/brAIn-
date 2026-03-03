@@ -1,5 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { storage } from '../utils/storage';
+import { detectBudgetGrantMismatch, buildDocumentConflicts, dedupeConflicts } from '../utils/conflicts';
+import { analyzeDocumentForConflicts } from '../utils/ai';
+import { StudioProvider } from './StudioContext';
+import { GrantSchema, BudgetSchema, MeetingSchema, TaskSchema, TodoSchema, validateSafe } from '../utils/schemas';
 
 const AppContext = createContext();
 
@@ -25,11 +29,17 @@ export const AppProvider = ({ children }) => {
   const [settings, setSettings] = useState({ theme: 'light', notifications: true });
   const [knowledgeDocs, setKnowledgeDocs] = useState([]);
   const [personnel, setPersonnel] = useState([]);
+  const [taskTypes, setTaskTypes] = useState([]);
+  const [conflicts, setConflicts] = useState([]);
+  const [replyQueue, setReplyQueue] = useState([]);
+  const [replyContextDocs, setReplyContextDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const analyzedDocIds = useRef(null); // initialized from storage in load effect
 
   // Load data from localStorage on mount
   useEffect(() => {
     const loadData = () => {
+      analyzedDocIds.current = storage.getAnalyzedDocIds();
       setGrants(storage.getGrants());
       setBudgets(storage.getBudgets());
       setTemplates(storage.getTemplates());
@@ -43,104 +53,120 @@ export const AppProvider = ({ children }) => {
       setSettings(storage.getSettings());
       setKnowledgeDocs(storage.getKnowledgeDocs());
       setPersonnel(storage.getPersonnel());
+      const storedTaskTypes = storage.getTaskTypes();
+      if (storedTaskTypes.length === 0) {
+        const now = new Date().toISOString();
+        const defaults = [
+          { id: 'builtin-travel-auth', name: 'Travel Authorization', category: 'travel', description: 'Submit travel for a conference or meeting. Covers the 4-phase SOP: Application → Spend Auth → CBT Booking → Post-Travel.', iconName: 'Plane', isBuiltIn: true, appLinks: [{ label: 'Open Travel Requests', path: '/travel-requests' }], forms: [], createdAt: now, updatedAt: now },
+          { id: 'builtin-payment-request', name: 'Payment Request (PRF)', category: 'payment', description: 'Create and submit a Payment Request Form linked to a grant budget category.', iconName: 'CreditCard', isBuiltIn: true, appLinks: [{ label: 'Open Payment Requests', path: '/payment-requests' }], forms: [], createdAt: now, updatedAt: now },
+          { id: 'builtin-pcard-load', name: 'P-Card Load (Transfer of Funds)', category: 'purchasing', description: 'Load the Declining Balance Card via Transfer of Funds form. Requires Nichelle\'s signature and Anjanette\'s processing.', iconName: 'DollarSign', isBuiltIn: true, appLinks: [], forms: [], createdAt: now, updatedAt: now },
+          { id: 'builtin-workday-req', name: 'Workday Requisition', category: 'purchasing', description: 'Submit a Workday requisition for purchases >$3,000. Requires PI approval and procurement workflow.', iconName: 'ShoppingCart', isBuiltIn: true, appLinks: [], forms: [], createdAt: now, updatedAt: now },
+        ];
+        storage.setTaskTypes(defaults);
+        setTaskTypes(defaults);
+      } else {
+        setTaskTypes(storedTaskTypes);
+      }
+      setConflicts(storage.getConflicts());
+      setReplyQueue(storage.getReplyQueue());
+      setReplyContextDocs(storage.getReplyContextDocs());
       setLoading(false);
     };
     loadData();
   }, []);
 
-  // Persist grants to localStorage
+  // Debounced localStorage persistence — coalesces rapid state updates into a
+  // single write 300 ms after the last change, preventing layout thrash on bulk
+  // operations (e.g. AI bulk-importing 20 meetings at once).
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setGrants(grants), 300); return () => clearTimeout(t); }, [grants, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setBudgets(budgets), 300); return () => clearTimeout(t); }, [budgets, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTemplates(templates), 300); return () => clearTimeout(t); }, [templates, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTasks(tasks), 300); return () => clearTimeout(t); }, [tasks, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setDocuments(documents), 300); return () => clearTimeout(t); }, [documents, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setSettings(settings), 300); return () => clearTimeout(t); }, [settings, loading]);
+  // Dark mode: apply theme class to <html> when settings.theme changes
   useEffect(() => {
-    if (!loading) {
-      storage.setGrants(grants);
+    const applyTheme = (theme) => {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else if (theme === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        // system
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', prefersDark);
+      }
+    };
+    applyTheme(settings.theme);
+    if (settings.theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = (e) => document.documentElement.classList.toggle('dark', e.matches);
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
     }
-  }, [grants, loading]);
+  }, [settings.theme]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setPaymentRequests(paymentRequests), 300); return () => clearTimeout(t); }, [paymentRequests, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTravelRequests(travelRequests), 300); return () => clearTimeout(t); }, [travelRequests, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setGiftCardDistributions(giftCardDistributions), 300); return () => clearTimeout(t); }, [giftCardDistributions, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setMeetings(meetings), 300); return () => clearTimeout(t); }, [meetings, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTodos(todos), 300); return () => clearTimeout(t); }, [todos, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setKnowledgeDocs(knowledgeDocs), 300); return () => clearTimeout(t); }, [knowledgeDocs, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setPersonnel(personnel), 300); return () => clearTimeout(t); }, [personnel, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTaskTypes(taskTypes), 300); return () => clearTimeout(t); }, [taskTypes, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setConflicts(conflicts), 300); return () => clearTimeout(t); }, [conflicts, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setReplyQueue(replyQueue), 300); return () => clearTimeout(t); }, [replyQueue, loading]);
+  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setReplyContextDocs(replyContextDocs), 300); return () => clearTimeout(t); }, [replyContextDocs, loading]);
 
-  // Persist budgets to localStorage
+  // Quota monitoring — fire custom event when storage exceeds 70%
   useEffect(() => {
-    if (!loading) {
-      storage.setBudgets(budgets);
-    }
-  }, [budgets, loading]);
+    if (loading) return;
+    const t = setTimeout(() => {
+      const { percent } = storage.getQuotaInfo();
+      if (percent >= 70) {
+        window.dispatchEvent(new CustomEvent('quota_warning', { detail: percent }));
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [grants, budgets, tasks, documents, knowledgeDocs, meetings, todos, personnel, replyQueue, loading]);
 
-  // Persist templates to localStorage
+  // Auto-detect budget ↔ grant amount mismatches
   useEffect(() => {
-    if (!loading) {
-      storage.setTemplates(templates);
+    if (loading) return;
+    const newConflicts = [];
+    for (const grant of grants) {
+      if (!grant.amount) continue;
+      const budget = budgets.find(b => b.grantId === grant.id);
+      if (!budget) continue;
+      const c = detectBudgetGrantMismatch(grant, budget);
+      if (c) newConflicts.push(c);
     }
-  }, [templates, loading]);
+    if (newConflicts.length > 0) {
+      setConflicts(prev => dedupeConflicts(prev, newConflicts));
+    }
+  }, [grants, budgets, loading]);
 
-  // Persist tasks to localStorage
+  // Auto-scan new knowledge docs for grant conflicts (background, non-blocking)
   useEffect(() => {
-    if (!loading) {
-      storage.setTasks(tasks);
-    }
-  }, [tasks, loading]);
-
-  // Persist documents to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setDocuments(documents);
-    }
-  }, [documents, loading]);
-
-  // Persist settings to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setSettings(settings);
-    }
-  }, [settings, loading]);
-
-  // Persist payment requests to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setPaymentRequests(paymentRequests);
-    }
-  }, [paymentRequests, loading]);
-
-  // Persist travel requests to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setTravelRequests(travelRequests);
-    }
-  }, [travelRequests, loading]);
-
-  // Persist gift card distributions to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setGiftCardDistributions(giftCardDistributions);
-    }
-  }, [giftCardDistributions, loading]);
-
-  // Persist meetings to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setMeetings(meetings);
-    }
-  }, [meetings, loading]);
-
-  // Persist todos to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setTodos(todos);
-    }
-  }, [todos, loading]);
-
-  // Persist knowledge docs to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setKnowledgeDocs(knowledgeDocs);
-    }
-  }, [knowledgeDocs, loading]);
-
-  // Persist personnel to localStorage
-  useEffect(() => {
-    if (!loading) {
-      storage.setPersonnel(personnel);
-    }
-  }, [personnel, loading]);
+    if (loading || !grants.length || !analyzedDocIds.current) return;
+    const unanalyzed = knowledgeDocs.filter(d => d.content && !analyzedDocIds.current.has(d.id));
+    if (unanalyzed.length === 0) return;
+    unanalyzed.forEach(doc => {
+      analyzedDocIds.current.add(doc.id);
+      storage.setAnalyzedDocIds(analyzedDocIds.current);
+      analyzeDocumentForConflicts(doc.content, doc.title, grants)
+        .then(extracted => {
+          if (!extracted.length) return;
+          const newC = buildDocumentConflicts(extracted, doc, grants);
+          if (newC.length > 0) {
+            setConflicts(prev => dedupeConflicts(prev, newC));
+          }
+        });
+    });
+  }, [knowledgeDocs, grants, loading]);
 
   // Grant operations
   const addGrant = (grant) => {
+    if (!validateSafe(GrantSchema, grant, 'grant')) return;
     // id can be pre-specified (e.g. when linking a budget at creation time)
     setGrants(prev => [...prev, { id: crypto.randomUUID(), ...grant, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
@@ -155,6 +181,7 @@ export const AppProvider = ({ children }) => {
 
   // Budget operations
   const addBudget = (budget) => {
+    if (!validateSafe(BudgetSchema, budget, 'budget')) return;
     setBudgets(prev => [...prev, { ...budget, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
 
@@ -257,6 +284,7 @@ export const AppProvider = ({ children }) => {
 
   // Task operations
   const addTask = (task) => {
+    if (!validateSafe(TaskSchema, task, 'task')) return;
     setTasks(prev => [...prev, { id: crypto.randomUUID(), ...task, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
 
@@ -322,6 +350,7 @@ export const AppProvider = ({ children }) => {
 
   // Meeting operations
   const addMeeting = (meeting) => {
+    if (!validateSafe(MeetingSchema, meeting, 'meeting')) return;
     setMeetings(prev => [...prev, { ...meeting, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
 
@@ -454,6 +483,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const addTodo = (todo) => {
+    if (!validateSafe(TodoSchema, todo, 'todo')) return;
     setTodos(prev => [...prev, todo]);
   };
 
@@ -465,7 +495,63 @@ export const AppProvider = ({ children }) => {
     setTodos(prev => prev.filter(t => t.id !== id));
   };
 
-  const value = {
+  // Conflict operations
+  const addConflicts = (newOnes) => {
+    setConflicts(prev => dedupeConflicts(prev, newOnes));
+  };
+
+  const resolveConflict = (id, choice) => {
+    setConflicts(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      // Apply the value change if "B" is chosen and sectionA is a grant
+      if (choice === 'B' && c.sectionA?.type === 'grant' && c.sectionA?.rawField && c.sectionB?.rawValue != null) {
+        setTimeout(() => updateGrant(c.sectionA.id, { [c.sectionA.rawField]: c.sectionB.rawValue }), 0);
+      }
+      return { ...c, resolved: true, resolvedWith: choice, resolvedAt: new Date().toISOString() };
+    }));
+  };
+
+  const clearResolvedConflicts = () => {
+    setConflicts(prev => prev.filter(c => !c.resolved));
+  };
+
+  // Task type operations
+  const addTaskType = (taskType) => {
+    setTaskTypes(prev => [...prev, { id: crypto.randomUUID(), ...taskType, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
+  };
+
+  const updateTaskType = (id, updates) => {
+    setTaskTypes(prev => prev.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t));
+  };
+
+  const deleteTaskType = (id) => {
+    setTaskTypes(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Reply Context Docs operations
+  const addReplyContextDoc = (doc) => {
+    setReplyContextDocs(prev => [...prev, { id: crypto.randomUUID(), ...doc, createdAt: new Date().toISOString() }]);
+  };
+
+  const deleteReplyContextDoc = (id) => {
+    setReplyContextDocs(prev => prev.filter(d => d.id !== id));
+  };
+
+  // Reply Queue operations
+  const addReplyItem = (item) => {
+    setReplyQueue(prev => [...prev, { id: crypto.randomUUID(), ...item, status: 'pending', createdAt: new Date().toISOString() }]);
+  };
+
+  const updateReplyItem = (id, updates) => {
+    setReplyQueue(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+  };
+
+  const deleteReplyItem = (id) => {
+    setReplyQueue(prev => prev.filter(r => r.id !== id));
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const value = useMemo(() => ({
     grants,
     budgets,
     templates,
@@ -520,7 +606,31 @@ export const AppProvider = ({ children }) => {
     deletePerson,
     setSettings,
     syncAndScrub,
-  };
+    taskTypes,
+    addTaskType,
+    updateTaskType,
+    deleteTaskType,
+    conflicts,
+    addConflicts,
+    resolveConflict,
+    clearResolvedConflicts,
+    replyQueue,
+    addReplyItem,
+    updateReplyItem,
+    deleteReplyItem,
+    replyContextDocs,
+    addReplyContextDoc,
+    deleteReplyContextDoc,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [grants, budgets, templates, tasks, documents, paymentRequests, travelRequests,
+    giftCardDistributions, meetings, todos, settings, loading, knowledgeDocs, personnel,
+    taskTypes, conflicts, replyQueue, replyContextDocs]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      <StudioProvider>
+        {children}
+      </StudioProvider>
+    </AppContext.Provider>
+  );
 };

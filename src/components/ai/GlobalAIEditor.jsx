@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useStudio } from '../../context/StudioContext';
 import { askClaudeWithGlobalTools } from '../../utils/ai';
 import {
   Bot, Send, X, Loader2, Sparkles, CheckCircle,
@@ -18,6 +19,11 @@ const BADGE_CONFIG = {
   delete_category: { icon: Trash2,      color: 'bg-red-100 text-red-800 border-red-200',          label: () => 'Category deleted' },
   update_mini_pool:{ icon: Edit3,       color: 'bg-teal-100 text-teal-800 border-teal-200',       label: () => 'Sub-budget updated' },
   delete_mini_pool:{ icon: Trash2,      color: 'bg-red-100 text-red-800 border-red-200',          label: () => 'Sub-budget deleted' },
+  create_meeting:  { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-800 border-emerald-200', label: (n) => `Created ${n} meeting${n !== 1 ? 's' : ''}` },
+  update_meeting:  { icon: RefreshCw,   color: 'bg-blue-100 text-blue-800 border-blue-200',         label: () => 'Meeting updated' },
+  delete_meeting:  { icon: Trash2,      color: 'bg-red-100 text-red-800 border-red-200',            label: () => 'Meeting deleted' },
+  update_student:  { icon: Edit3,       color: 'bg-violet-100 text-violet-800 border-violet-200',   label: () => 'Student updated' },
+  add_lesson_log:  { icon: CheckCircle, color: 'bg-purple-100 text-purple-800 border-purple-200',   label: () => 'Lesson log added' },
 };
 
 function ToolBadge({ call }) {
@@ -51,7 +57,7 @@ function MessageBubble({ msg }) {
           <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
             isUser
               ? 'bg-indigo-600 text-white rounded-tr-sm'
-              : 'bg-gray-100 text-gray-800 rounded-tl-sm'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-sm'
           }`}>
             {msg.content}
           </div>
@@ -91,7 +97,9 @@ const GlobalAIEditor = () => {
     grants, budgets, tasks, knowledgeDocs, meetings, personnel,
     updateGrant, updateBudget,
     addTask, updateTask, deleteTask,
+    addMeeting, updateMeeting, deleteMeeting,
   } = useApp();
+  const { students, updateStudent, addLessonLog } = useStudio();
 
   const [isOpen, setIsOpen]           = useState(false);
   const [isDragOver, setIsDragOver]   = useState(false);
@@ -196,6 +204,32 @@ const GlobalAIEditor = () => {
     });
   };
 
+  const handleCreateMeetings = async (meetingDefs) => {
+    const created = [];
+    for (const def of meetingDefs) {
+      const id = crypto.randomUUID();
+      addMeeting({ id, ...def });
+      created.push({ id, ...def });
+    }
+    return created;
+  };
+
+  const handleUpdateMeeting = async (meetingId, updates) => {
+    updateMeeting(meetingId, updates);
+  };
+
+  const handleDeleteMeeting = async (meetingId) => {
+    deleteMeeting(meetingId);
+  };
+
+  const handleUpdateStudent = async (studentId, updates) => {
+    updateStudent(studentId, updates);
+  };
+
+  const handleAddLessonLog = async (studentId, entry) => {
+    addLessonLog(studentId, entry);
+  };
+
   // ── Send message ────────────────────────────────────────────────────────────
   const handleSend = async (overrideText, overrideFiles, capturedPreview) => {
     const text  = overrideText  !== undefined ? overrideText  : input.trim();
@@ -221,7 +255,7 @@ const GlobalAIEditor = () => {
       const { reply, toolCalls, newHistory } = await askClaudeWithGlobalTools(
         effectiveText,
         conversationHistory,
-        { grants, budgets, tasks, knowledgeDocs, meetings, personnel },
+        { grants, budgets, tasks, knowledgeDocs, meetings, personnel, students },
         {
           onCreateTasks:    handleCreateTasks,
           onUpdateTasks:    handleUpdateTasks,
@@ -232,6 +266,11 @@ const GlobalAIEditor = () => {
           onDeleteCategory: handleDeleteCategory,
           onUpdateMiniPool: handleUpdateMiniPool,
           onDeleteMiniPool: handleDeleteMiniPool,
+          onCreateMeetings: handleCreateMeetings,
+          onUpdateMeeting:  handleUpdateMeeting,
+          onDeleteMeeting:  handleDeleteMeeting,
+          onUpdateStudent:  handleUpdateStudent,
+          onAddLessonLog:   handleAddLessonLog,
         },
         files
       );
@@ -325,9 +364,9 @@ const GlobalAIEditor = () => {
         )}
       </button>
 
-      {/* Slide-in panel */}
+      {/* Slide-up panel — bottom-right */}
       {isOpen && (
-        <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-40 flex flex-col border-l border-gray-200">
+        <div className="fixed bottom-24 right-6 w-96 max-h-[70vh] bg-white dark:bg-gray-900 shadow-2xl z-40 flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
 
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between flex-shrink-0">
@@ -418,7 +457,7 @@ const GlobalAIEditor = () => {
           )}
 
           {/* Input area */}
-          <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+          <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
             {/* Drop zone */}
             <div
               onDragOver={handleDragOver}

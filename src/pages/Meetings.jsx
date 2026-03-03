@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search } from 'lucide-react';
+import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search, CheckSquare } from 'lucide-react';
 
 const Meetings = () => {
-  const { meetings, grants, addMeeting, updateMeeting, deleteMeeting } = useApp();
+  const { meetings, grants, addMeeting, updateMeeting, deleteMeeting, addTask } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [viewMode, setViewMode] = useState(false);
+  const [actionItemPrompt, setActionItemPrompt] = useState(null); // { lines: string[], grantId: string }
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -72,7 +73,32 @@ const Meetings = () => {
       addMeeting(formData);
     }
 
+    // Check for action items to convert to tasks
+    const actionLines = (formData.actionItems || '')
+      .split('\n')
+      .map(l => l.replace(/^[-*•]\s*/, '').trim())
+      .filter(l => l.length > 0);
+
+    if (actionLines.length > 0) {
+      setActionItemPrompt({ lines: actionLines, grantId: formData.grantId });
+    }
+
     handleCloseModal();
+  };
+
+  const handleConvertActionItems = () => {
+    if (!actionItemPrompt) return;
+    actionItemPrompt.lines.forEach(line => {
+      addTask({
+        title: line,
+        status: 'To Do',
+        priority: 'Medium',
+        grantId: actionItemPrompt.grantId || '',
+        source: 'meeting',
+        createdAt: new Date().toISOString(),
+      });
+    });
+    setActionItemPrompt(null);
   };
 
   const handleDelete = (id) => {
@@ -525,6 +551,43 @@ ${meeting.actionItems || 'None'}
                   </div>
                 </form>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Items → Tasks conversion prompt */}
+      {actionItemPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setActionItemPrompt(null)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <CheckSquare size={20} className="text-primary-600 dark:text-primary-400" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                Convert {actionItemPrompt.lines.length} action item{actionItemPrompt.lines.length !== 1 ? 's' : ''} to tasks?
+              </h3>
+            </div>
+            <ul className="mb-5 space-y-1">
+              {actionItemPrompt.lines.map((line, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3">
+              <button
+                onClick={handleConvertActionItems}
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Yes, create tasks
+              </button>
+              <button
+                onClick={() => setActionItemPrompt(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors"
+              >
+                Skip
+              </button>
             </div>
           </div>
         </div>

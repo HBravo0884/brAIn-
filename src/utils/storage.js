@@ -14,6 +14,13 @@ const STORAGE_KEYS = {
   SETTINGS: 'pm_hub_settings',
   KNOWLEDGE_DOCS: 'pm_hub_knowledge_docs',
   PERSONNEL: 'pm_hub_personnel',
+  TASK_TYPES: 'pm_hub_task_types',
+  CONFLICTS: 'pm_hub_conflicts',
+  REPLY_QUEUE: 'pm_hub_reply_queue',
+  REPLY_CONTEXT_DOCS: 'pm_hub_reply_context_docs',
+  STUDENTS: 'studio_students',
+  ANALYZED_DOC_IDS: 'pm_hub_analyzed_doc_ids',
+  AI_COST_LOG: 'pm_hub_ai_cost_log',
 };
 
 export const storage = {
@@ -154,6 +161,74 @@ export const storage = {
 
   setPersonnel(personnel) {
     return this.set(STORAGE_KEYS.PERSONNEL, personnel);
+  },
+
+  getTaskTypes() {
+    return this.get(STORAGE_KEYS.TASK_TYPES) || [];
+  },
+
+  setTaskTypes(taskTypes) {
+    return this.set(STORAGE_KEYS.TASK_TYPES, taskTypes);
+  },
+
+  getConflicts() {
+    return this.get(STORAGE_KEYS.CONFLICTS) || [];
+  },
+
+  setConflicts(conflicts) {
+    return this.set(STORAGE_KEYS.CONFLICTS, conflicts);
+  },
+
+  getReplyQueue() {
+    return this.get(STORAGE_KEYS.REPLY_QUEUE) || [];
+  },
+
+  setReplyQueue(items) {
+    return this.set(STORAGE_KEYS.REPLY_QUEUE, items);
+  },
+
+  getReplyContextDocs() {
+    return this.get(STORAGE_KEYS.REPLY_CONTEXT_DOCS) || [];
+  },
+
+  setReplyContextDocs(docs) {
+    return this.set(STORAGE_KEYS.REPLY_CONTEXT_DOCS, docs);
+  },
+
+  getStudents() {
+    return this.get(STORAGE_KEYS.STUDENTS) || [];
+  },
+
+  setStudents(students) {
+    return this.set(STORAGE_KEYS.STUDENTS, students);
+  },
+
+  getAnalyzedDocIds() {
+    const arr = this.get(STORAGE_KEYS.ANALYZED_DOC_IDS) || [];
+    return new Set(arr);
+  },
+
+  setAnalyzedDocIds(set) {
+    return this.set(STORAGE_KEYS.ANALYZED_DOC_IDS, [...set]);
+  },
+
+  getQuotaInfo() {
+    try {
+      const usedBytes = new Blob([JSON.stringify(localStorage)]).size;
+      const totalBytes = 5_242_880; // 5 MB
+      const percent = Math.round((usedBytes / totalBytes) * 100);
+      return { usedBytes, totalBytes, percent };
+    } catch {
+      return { usedBytes: 0, totalBytes: 5_242_880, percent: 0 };
+    }
+  },
+
+  getAiCostLog() {
+    return this.get(STORAGE_KEYS.AI_COST_LOG) || [];
+  },
+
+  setAiCostLog(log) {
+    return this.set(STORAGE_KEYS.AI_COST_LOG, log);
   },
 
   // Clear all data

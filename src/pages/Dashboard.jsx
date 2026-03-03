@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import { generateDailyPriorities } from '../utils/ai';
 import {
   DollarSign,
   FileText,
@@ -17,16 +18,37 @@ import {
   Check,
   Download,
   Link2,
-  BarChart3
+  BarChart3,
+  Zap,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { grants, budgets, documents, tasks, todos, addDocument, addTodo, updateTodo, updateBudget } = useApp();
+  const { grants, budgets, documents, tasks, todos, meetings, addDocument, addTodo, updateTodo, updateBudget } = useApp();
   const [isDragging, setIsDragging] = useState(false);
   const [newTodo, setNewTodo] = useState('');
   const [quickExpense, setQuickExpense] = useState({ desc: '', amount: '', budget: '' });
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportOptions, setExportOptions] = useState({ byAim: true, byCategory: true, withDocs: false });
+  const [priorities, setPriorities] = useState(null);
+  const [prioritiesLoading, setPrioritiesLoading] = useState(false);
+  const [prioritiesError, setPrioritiesError] = useState(false);
+  const [financialOpen, setFinancialOpen] = useState(true);
+
+  // Load daily priorities on mount
+  useEffect(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const activeGrants = grants.filter(g => g.status === 'active');
+    const openTasks = tasks.filter(t => t.status !== 'Done');
+    const activeTodos = todos.filter(t => !t.completed);
+
+    setPrioritiesLoading(true);
+    generateDailyPriorities(activeGrants, openTasks, meetings || [], activeTodos, todayStr)
+      .then(result => { setPriorities(result); setPrioritiesLoading(false); })
+      .catch(() => { setPrioritiesError(true); setPrioritiesLoading(false); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate totals
   const totalBudget = budgets.reduce((sum, b) => sum + b.totalBudget, 0);
@@ -371,10 +393,10 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Program Manager Hub</h1>
-          <p className="text-gray-600">Everything at a glance • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">Program Manager Hub</h1>
+          <p className="text-gray-600 dark:text-gray-400">Everything at a glance • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
         <Button variant="primary" onClick={importExpenseAuthorizations}>
           <Upload size={16} className="mr-2" />
@@ -382,8 +404,110 @@ const Dashboard = () => {
         </Button>
       </div>
 
-      {/* Top Status Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      {/* Today Panel — AI daily priorities */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border-b border-gray-200 dark:border-gray-700">
+          <Zap size={15} className="text-primary-600 dark:text-primary-400" />
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Today's Focus</span>
+          <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">AI-generated daily priorities</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-gray-800">
+          {/* Urgent */}
+          <div className="p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <AlertCircle size={13} className="text-red-500" />
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">Urgent</span>
+            </div>
+            {prioritiesLoading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="h-3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${60 + i * 10}%` }} />)}
+              </div>
+            ) : prioritiesError || !priorities ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Could not load priorities</p>
+            ) : priorities.urgent.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Nothing urgent — great work!</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {priorities.urgent.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* This Week */}
+          <div className="p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Clock size={13} className="text-amber-500" />
+              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">This Week</span>
+            </div>
+            {prioritiesLoading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="h-3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${70 + i * 5}%` }} />)}
+              </div>
+            ) : prioritiesError || !priorities ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Could not load priorities</p>
+            ) : priorities.thisWeek.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Clear week ahead!</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {priorities.thisWeek.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Today's Meetings */}
+          <div className="p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <CalendarDays size={13} className="text-blue-500" />
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Today's Meetings</span>
+            </div>
+            {prioritiesLoading ? (
+              <div className="space-y-2">
+                {[1,2].map(i => <div key={i} className="h-3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${65 + i * 10}%` }} />)}
+              </div>
+            ) : prioritiesError || !priorities ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Could not load</p>
+            ) : priorities.todaysMeetings.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">No meetings today</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {priorities.todaysMeetings.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Overview — collapsible */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <button
+          onClick={() => setFinancialOpen(v => !v)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        >
+          <DollarSign size={15} className="text-gray-500 dark:text-gray-400" />
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Financial Overview</span>
+          <span className="ml-auto">
+            {financialOpen ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+          </span>
+        </button>
+        {financialOpen && (
+          <div className="p-4 space-y-4">
+            {/* Top Status Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -438,8 +562,11 @@ const Dashboard = () => {
               </p>
             </div>
           </div>
-        </Card>
-      )}
+            </Card>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-2 gap-6">

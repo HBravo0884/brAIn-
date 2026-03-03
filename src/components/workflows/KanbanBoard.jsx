@@ -5,8 +5,15 @@ import Button from '../common/Button';
 import Modal from '../common/Modal';
 import Input from '../common/Input';
 import Select from '../common/Select';
-import { Plus, MoreVertical, Edit, Trash2, Calendar } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Trash2, Calendar, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+
+const isStalled = (task) => {
+  if (task.status === 'Done') return false;
+  const updated = task.updatedAt || task.createdAt;
+  if (!updated) return false;
+  return (Date.now() - new Date(updated).getTime()) > 7 * 86_400_000;
+};
 
 const KanbanBoard = () => {
   const { tasks, addTask, updateTask, deleteTask, grants } = useApp();
@@ -117,10 +124,11 @@ const KanbanBoard = () => {
                 {columnTasks.map(task => {
                   const grant = grants.find(g => g.id === task.grantId);
 
+                  const stalled = isStalled(task);
                   return (
-                    <Card key={task.id} className="p-4 cursor-pointer hover:shadow-lg transition-shadow">
+                    <Card key={task.id} className={`p-4 cursor-pointer hover:shadow-lg transition-shadow ${stalled ? 'border-amber-300 dark:border-amber-700' : ''}`}>
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900 text-sm flex-1">{task.title}</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm flex-1">{task.title}</h4>
                         <button
                           onClick={() => handleEdit(task)}
                           className="p-1 hover:bg-gray-100 rounded"
@@ -133,13 +141,19 @@ const KanbanBoard = () => {
                         <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
                       )}
 
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={`px-2 py-0.5 text-xs rounded-full ${priorityColors[task.priority]}`}>
                           {task.priority}
                         </span>
                         {grant && (
                           <span className="px-2 py-0.5 text-xs bg-primary-100 text-primary-700 rounded-full">
                             {grant.title.substring(0, 20)}
+                          </span>
+                        )}
+                        {stalled && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
+                            <AlertTriangle size={10} />
+                            Stalled
                           </span>
                         )}
                       </div>

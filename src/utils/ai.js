@@ -1,22 +1,35 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-// IMPORTANT: For production, move API key to backend/environment variables
-// Never expose API keys in frontend code
-const getClaudeClient = () => {
-  // Prefer user-configured key from Settings, fall back to .env
+/**
+ * Proxy-first Claude API caller.
+ * Production / netlify dev: POST to /api/claude (Netlify Function holds ANTHROPIC_API_KEY server-side).
+ * Local vite-only dev: falls back to direct SDK call using localStorage or .env key.
+ */
+const claudeFetch = async (payload) => {
+  try {
+    const res = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return res.json();
+    if (res.status !== 404) {
+      const errText = await res.text();
+      throw new Error(`Claude proxy error ${res.status}: ${errText}`);
+    }
+    // 404 = proxy not running (plain vite dev) → fall through to SDK
+  } catch (err) {
+    if (!err.message.startsWith('Claude proxy error') && !(err instanceof TypeError)) throw err;
+    if (err.message.startsWith('Claude proxy error')) throw err;
+  }
+
+  // Local dev fallback: direct SDK (dangerouslyAllowBrowser for dev only)
   const apiKey =
     localStorage.getItem('brain_anthropic_api_key') ||
     import.meta.env.VITE_ANTHROPIC_API_KEY;
-
-  if (!apiKey) {
-    console.warn('Anthropic API key not found. Add it in Settings or set VITE_ANTHROPIC_API_KEY in .env');
-    return null;
-  }
-
-  return new Anthropic({
-    apiKey: apiKey,
-    dangerouslyAllowBrowser: true // Only for development/demo
-  });
+  if (!apiKey) throw new Error('No API key. Add one in Settings or run via `npm run dev:full`.');
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  return client.messages.create(payload);
 };
 
 /**
@@ -26,22 +39,12 @@ const getClaudeClient = () => {
  * @returns {Promise<string>} - Claude's response
  */
 export const askClaude = async (prompt, options = {}) => {
-  const client = getClaudeClient();
-
-  if (!client) {
-    throw new Error('Claude API client not initialized. Check your API key.');
-  }
-
   try {
-    const message = await client.messages.create({
-      model: options.model || 'claude-sonnet-4-5',
+    const message = await claudeFetch({
+      model: options.model || 'claude-sonnet-4-6',
       max_tokens: options.max_tokens || 4096,
-      messages: [{
-        role: 'user',
-        content: prompt
-      }]
+      messages: [{ role: 'user', content: prompt }],
     });
-
     return message.content[0].text;
   } catch (error) {
     console.error('Claude API error:', error);
@@ -242,8 +245,6 @@ export const budgetStructureToText = (budgets, grants) => {
  *   items: { name, amount, suggestedCategory, suggestedMiniPool, reason }
  */
 export const extractExpensesFromDocument = async (file, budgetContext = '') => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized. Check your API key.');
 
   // ── Build the document content block ──────────────────────────────────────
   const contentBlocks = [];
@@ -327,7 +328,7 @@ Rules:
 - totalAmount = total for the whole document`,
   });
 
-  const message = await client.messages.create({
+  const message = await claudeFetch({
     model: 'claude-opus-4-6',
     max_tokens: 3000,
     messages: [{ role: 'user', content: contentBlocks }],
@@ -514,8 +515,6 @@ export const askClaudeWithWorkflowTools = async (
   context,
   toolCallbacks
 ) => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized. Check your API key.');
 
   const { tasks = [], grants = [] } = context;
   const { onCreateTasks, onUpdateTasks, onDeleteTasks } = toolCallbacks;
@@ -530,7 +529,7 @@ export const askClaudeWithWorkflowTools = async (
 
   // Agentic loop
   while (true) {
-    const response = await client.messages.create({
+    const response = await claudeFetch({
       model: 'claude-opus-4-6',
       max_tokens: 4096,
       system: systemPrompt,
@@ -740,6 +739,116 @@ const GLOBAL_TOOLS = [
       required: ['budgetId', 'categoryId', 'miniPoolId'],
     },
   },
+  {
+    name: 'create_meetings',
+    description: 'Create one or more meetings on the calendar. Supports one-time and recurring meetings (weekly, biweekly, monthly). For recurring meetings, set recurrence.type and recurrence.endDate.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        meetings: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title:     { type: 'string',  description: 'Meeting title' },
+              date:      { type: 'string',  description: 'First (or only) occurrence: ISO datetime YYYY-MM-DDTHH:mm' },
+              endTime:   { type: 'string',  description: 'End time as readable string e.g. "12:30 PM"' },
+              location:  { type: 'string' },
+              attendees: { type: 'string',  description: 'Comma-separated attendee names or emails' },
+              notes:     { type: 'string' },
+              grantId:   { type: 'string',  description: 'Link to a grant if relevant' },
+              recurrence: {
+                type: 'object',
+                description: 'Omit or set type to "none" for one-time meetings',
+                properties: {
+                  type:    { type: 'string', enum: ['none', 'weekly', 'biweekly', 'monthly'], description: '"weekly" = every 7 days, "biweekly" = every 14 days' },
+                  endDate: { type: 'string', description: 'YYYY-MM-DD — last date of the series' },
+                },
+              },
+            },
+            required: ['title', 'date'],
+          },
+        },
+      },
+      required: ['meetings'],
+    },
+  },
+  {
+    name: 'update_meeting',
+    description: 'Update fields of an existing meeting by its id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+        title:     { type: 'string' },
+        date:      { type: 'string' },
+        endTime:   { type: 'string' },
+        location:  { type: 'string' },
+        attendees: { type: 'string' },
+        notes:     { type: 'string' },
+        grantId:   { type: 'string' },
+      },
+      required: ['meetingId'],
+    },
+  },
+  {
+    name: 'delete_meeting',
+    description: 'Delete a meeting by its id. ALWAYS confirm with the user before calling this.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        meetingId: { type: 'string' },
+      },
+      required: ['meetingId'],
+    },
+  },
+  {
+    name: 'update_student',
+    description: 'Update a piano student record in the Studio. Use studentId from the STUDIO STUDENTS section. Can update: name, status (Active/Discontinued), day, time, location, sessions, experienceLevel, dragonMusic, currentGoal, currentFocus, thePrescription, theTrigger, entryPoint, acquiredSkills, currentChallenges, earTraining, practitionPrescription.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        studentId: { type: 'string', description: 'The student id from the system prompt' },
+        updates: {
+          type: 'object',
+          description: 'Key/value pairs of fields to update',
+          properties: {
+            name:                   { type: 'string' },
+            status:                 { type: 'string' },
+            day:                    { type: 'string' },
+            time:                   { type: 'string' },
+            location:               { type: 'string' },
+            sessions:               { type: 'number' },
+            experienceLevel:        { type: 'string' },
+            dragonMusic:            { type: 'string' },
+            currentGoal:            { type: 'string' },
+            currentFocus:           { type: 'string' },
+            thePrescription:        { type: 'string' },
+            theTrigger:             { type: 'string' },
+            entryPoint:             { type: 'string' },
+            acquiredSkills:         { type: 'string' },
+            currentChallenges:      { type: 'string' },
+            earTraining:            { type: 'string' },
+            practitionPrescription: { type: 'string' },
+          },
+        },
+      },
+      required: ['studentId', 'updates'],
+    },
+  },
+  {
+    name: 'add_lesson_log',
+    description: 'Add a lesson log entry for a piano student.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        studentId: { type: 'string' },
+        date:      { type: 'string', description: 'YYYY-MM-DD, defaults to today' },
+        notes:     { type: 'string', description: 'Lesson notes' },
+      },
+      required: ['studentId', 'notes'],
+    },
+  },
 ];
 
 /**
@@ -774,10 +883,7 @@ export const searchKnowledge = (query, docs, maxResults = 5) => {
  * Generate a 2–3 sentence AI summary of a document.
  */
 export const generateDocSummary = async (content, title = '') => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized.');
-
-  const response = await client.messages.create({
+  const response = await claudeFetch({
     model: 'claude-opus-4-6',
     max_tokens: 200,
     messages: [{
@@ -793,10 +899,7 @@ export const generateDocSummary = async (content, title = '') => {
  * Returns: { subject, participants, dateRange, keyDecisions, actionItems, content }
  */
 export const parseEmailThread = async (rawText) => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized.');
-
-  const response = await client.messages.create({
+  const response = await claudeFetch({
     model: 'claude-opus-4-6',
     max_tokens: 1500,
     messages: [{
@@ -828,8 +931,6 @@ ${rawText.slice(0, 6000)}`,
  * Uses Claude vision/doc capabilities for PDF and image files.
  */
 export const extractTextFromFile = async (file) => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized.');
 
   const blocks = [];
   if (file.type === 'application/pdf') {
@@ -844,7 +945,7 @@ export const extractTextFromFile = async (file) => {
   }
   blocks.push({ type: 'text', text: 'Extract and return all the text content from this document. Preserve structure (headings, lists, numbered items). Do not summarize — return all text verbatim.' });
 
-  const response = await client.messages.create({
+  const response = await claudeFetch({
     model: 'claude-opus-4-6',
     max_tokens: 4000,
     messages: [{ role: 'user', content: blocks }],
@@ -852,7 +953,7 @@ export const extractTextFromFile = async (file) => {
   return response.content[0].text.trim();
 };
 
-const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = [], meetings = [], personnel = []) => {
+const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = [], meetings = [], personnel = [], students = []) => {
   const today = new Date().toISOString().split('T')[0];
 
   const grantsText = grants.length === 0
@@ -900,6 +1001,15 @@ const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = [], mee
         (p.type ? ` | Type: ${p.type}` : '')
       ).join('\n');
 
+  const activeStudents = students.filter(s => s.status === 'Active');
+  const studentsText = activeStudents.length === 0
+    ? '(No active students)'
+    : activeStudents.map(s =>
+        `  [${s.id}] ${s.name} | ${s.day} ${s.time} | ${s.location} | ${s.sessions}min | ${s.experienceLevel}` +
+        (s.dragonMusic ? ` | 🎵 ${s.dragonMusic}` : '') +
+        (s.currentGoal ? ` | Goal: ${s.currentGoal}` : '')
+      ).join('\n');
+
   // Knowledge Base context
   let kbBlock = '';
   if (knowledgeDocs && knowledgeDocs.length > 0) {
@@ -940,6 +1050,8 @@ You can read and modify ALL app data. Tools available:
 - update_budget — update budget total
 - update_category, delete_category — budget categories
 - update_mini_pool, delete_mini_pool — sub-budgets inside categories
+- create_meetings, update_meeting, delete_meeting — Calendar meetings (one-time and recurring: weekly, biweekly, monthly)
+- update_student, add_lesson_log — Studio student records and lesson logs
 
 IMPORTANT RULES:
 1. For DELETE operations (categories, mini pools), ALWAYS tell the user what will be deleted and explicitly ask for confirmation BEFORE calling the delete tool. Do not call delete tools in the same turn as your warning.
@@ -965,6 +1077,10 @@ ${meetingsText}
 PERSONNEL DIRECTORY:
 ${personnelText}
 
+STUDIO — PIANO STUDENTS (Expressions Music Academy, ${activeStudents.length} active):
+Format: [id] Name | Day Time | Location | Duration | Level | Dragon Music piece | Current Goal
+${studentsText}
+
 === GRT000937 KEY REMINDERS ===
 - P-Card: reconcile in PaymentNet by the 15th of every month
 - Travel: Spend Authorization must be created 30+ days before departure
@@ -980,7 +1096,9 @@ ${personnelText}
  * @param {Array}  conversationHistory
  * @param {{ grants, budgets, tasks }} context
  * @param {{ onCreateTasks, onUpdateTasks, onDeleteTasks, onUpdateGrant, onUpdateBudget,
- *           onUpdateCategory, onDeleteCategory, onUpdateMiniPool, onDeleteMiniPool }} toolCallbacks
+ *           onUpdateCategory, onDeleteCategory, onUpdateMiniPool, onDeleteMiniPool,
+ *           onCreateMeetings, onUpdateMeeting, onDeleteMeeting,
+ *           onUpdateStudent, onAddLessonLog }} toolCallbacks
  * @param {File[]} attachedFiles  - optional array of File objects to attach
  * @returns {Promise<{ reply, toolCalls, newHistory }>}
  */
@@ -991,18 +1109,18 @@ export const askClaudeWithGlobalTools = async (
   toolCallbacks,
   attachedFiles = []
 ) => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized. Check your API key.');
 
-  const { grants = [], budgets = [], tasks = [], knowledgeDocs = [], meetings = [], personnel = [] } = context;
+  const { grants = [], budgets = [], tasks = [], knowledgeDocs = [], meetings = [], personnel = [], students = [] } = context;
   const {
     onCreateTasks, onUpdateTasks, onDeleteTasks,
     onUpdateGrant, onUpdateBudget,
     onUpdateCategory, onDeleteCategory,
     onUpdateMiniPool, onDeleteMiniPool,
+    onCreateMeetings, onUpdateMeeting, onDeleteMeeting,
+    onUpdateStudent, onAddLessonLog,
   } = toolCallbacks;
 
-  const systemPrompt = buildGlobalSystemPrompt(grants, budgets, tasks, knowledgeDocs, meetings, personnel);
+  const systemPrompt = buildGlobalSystemPrompt(grants, budgets, tasks, knowledgeDocs, meetings, personnel, students);
   const toolCalls = [];
 
   // Build user content — may include file attachment blocks
@@ -1033,7 +1151,7 @@ export const askClaudeWithGlobalTools = async (
 
   // Agentic loop
   while (true) {
-    const response = await client.messages.create({
+    const response = await claudeFetch({
       model: 'claude-opus-4-6',
       max_tokens: 4096,
       system: systemPrompt,
@@ -1104,6 +1222,33 @@ export const askClaudeWithGlobalTools = async (
           await onDeleteMiniPool(inp.budgetId, inp.categoryId, inp.miniPoolId);
           result = { success: true };
           toolCalls.push({ type: 'delete_mini_pool', count: 1 });
+
+        } else if (block.name === 'create_meetings') {
+          const created = await onCreateMeetings(inp.meetings);
+          result = { success: true, created: created.length };
+          toolCalls.push({ type: 'create_meeting', count: created.length });
+
+        } else if (block.name === 'update_meeting') {
+          const { meetingId, ...updates } = inp;
+          await onUpdateMeeting(meetingId, updates);
+          result = { success: true };
+          toolCalls.push({ type: 'update_meeting', count: 1 });
+
+        } else if (block.name === 'delete_meeting') {
+          await onDeleteMeeting(inp.meetingId);
+          result = { success: true };
+          toolCalls.push({ type: 'delete_meeting', count: 1 });
+
+        } else if (block.name === 'update_student') {
+          await onUpdateStudent(inp.studentId, inp.updates);
+          result = { success: true };
+          toolCalls.push({ type: 'update_student', count: 1 });
+
+        } else if (block.name === 'add_lesson_log') {
+          const today = new Date().toISOString().split('T')[0];
+          await onAddLessonLog(inp.studentId, { date: inp.date || today, notes: inp.notes });
+          result = { success: true };
+          toolCalls.push({ type: 'add_lesson_log', count: 1 });
         }
       } catch (err) {
         result = { success: false, error: err.message };
@@ -1129,8 +1274,6 @@ export const askClaudeWithGlobalTools = async (
  * @returns {Promise<string>} Formatted briefing markdown
  */
 export const generateStatusBriefing = async (data, type = 'full') => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized. Check your API key.');
 
   const {
     grants = [],
@@ -1237,7 +1380,7 @@ ${kbStr}
 ---
 Now generate the briefing. Use markdown formatting with clear sections. Start with a one-line status summary at the top.`;
 
-  const response = await client.messages.create({
+  const response = await claudeFetch({
     model: 'claude-opus-4-6',
     max_tokens: type === 'executive' ? 1024 : 3000,
     messages: [{ role: 'user', content: prompt }],
@@ -1251,8 +1394,6 @@ Now generate the briefing. Use markdown formatting with clear sections. Start wi
  * Returns: { summary, newTasks, taskUpdates, grantUpdates, newKnowledgeDocs, generalInsights }
  */
 export const parseNotebookLMOutput = async (notebookText, currentData) => {
-  const client = getClaudeClient();
-  if (!client) throw new Error('Claude API client not initialized. Check your API key.');
 
   const { grants = [], tasks = [], knowledgeDocs = [] } = currentData;
   const today = new Date().toISOString().split('T')[0];
@@ -1321,7 +1462,7 @@ Rules:
 - If nothing found for a category, return empty array
 - Keep proposals minimal and accurate`;
 
-  const response = await client.messages.create({
+  const response = await claudeFetch({
     model: 'claude-opus-4-6',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
@@ -1338,30 +1479,500 @@ Rules:
 };
 
 /**
+ * Scan knowledge doc content against existing grants for factual conflicts.
+ * Runs as a background task (uses Sonnet for cost efficiency).
+ * @param {string} content - full text content of the knowledge doc
+ * @param {string} title - doc title for context
+ * @param {Array} grants - array of grant objects
+ * @returns {Promise<Array<{fieldLabel, grantId, documentValue, grantValue}>>}
+ */
+export const analyzeDocumentForConflicts = async (content, title, grants) => {
+  if (!content || !grants?.length) return [];
+
+  const grantSummary = grants.map(g => ({
+    id: g.id,
+    title: g.title,
+    worktag: g.worktag,
+    amount: g.amount ? `$${Number(g.amount).toLocaleString()}` : null,
+    startDate: g.startDate,
+    endDate: g.endDate,
+    status: g.status,
+    fundingAgency: g.fundingAgency,
+  }));
+
+  const prompt = `You are checking if a document contradicts grant records in a grant management system.
+
+Document title: "${title}"
+Document content (first 3000 chars):
+${content.slice(0, 3000)}
+
+Grant records:
+${JSON.stringify(grantSummary, null, 2)}
+
+Does this document mention any facts that CONTRADICT the grant records above?
+Check ONLY: total award amount, project end date, project start date, PI/PD name, grant status.
+
+Rules:
+- Only flag a conflict if the document explicitly states a value that contradicts the stored value
+- Minor formatting differences (e.g., "$485K" vs "$485,000") are NOT conflicts
+- If the document matches or doesn't mention a field, do NOT include it
+- If no conflicts, return []
+
+Return ONLY a JSON array. No commentary. Format:
+[{"fieldLabel": "Grant Amount", "grantId": "the-grant-uuid", "documentValue": "value from doc", "grantValue": "value in system"}]`;
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    let raw = response.content[0].text.trim();
+    raw = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return []; // Silent fail — background task
+  }
+};
+
+/**
+ * Extract fillable fields from an uploaded form image or PDF.
+ * Returns an array of field descriptors with suggested auto-fill keys.
+ * @param {File} file - image (jpeg/png/webp/gif) or PDF
+ * @returns {Promise<Array<{ label: string, fieldType: string, autoFillKey: string|null }>>}
+ */
+export const extractFormFields = async (file) => {
+
+  const base64 = await fileToBase64(file);
+  const isImage = file.type.startsWith('image/');
+  const mediaType = isImage ? file.type : 'application/pdf';
+  const contentBlock = isImage
+    ? { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }
+    : { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64 } };
+
+  const prompt = `You are analyzing an administrative form. Your job is to identify every fillable field visible on this form.
+
+For each field, return:
+- "label": the exact text label next to the field (e.g. "Principal Investigator", "Grant Number", "Department")
+- "fieldType": one of "text", "date", "signature", "checkbox", "number"
+- "autoFillKey": one of the following keys if the field clearly matches, otherwise null:
+  pi.name, pi.email, pd.name, pd.title, pd.department, pd.institution,
+  grant.title, grant.worktag, grant.costCenter, grant.agency, date.today
+
+Return ONLY a JSON array. No commentary, no markdown fences. Example:
+[
+  { "label": "Principal Investigator", "fieldType": "text", "autoFillKey": "pi.name" },
+  { "label": "Grant Number", "fieldType": "text", "autoFillKey": "grant.worktag" },
+  { "label": "Conference Title", "fieldType": "text", "autoFillKey": null }
+]`;
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-opus-4-6',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }],
+    });
+
+    let raw = response.content[0].text.trim();
+    raw = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('extractFormFields error:', error);
+    throw error;
+  }
+};
+
+/**
  * Chat with Claude (general purpose)
  */
 export const chatWithClaude = async (userMessage, conversationHistory = []) => {
-  const client = getClaudeClient();
-
-  if (!client) {
-    throw new Error('Claude API client not initialized. Check your API key.');
-  }
-
   const messages = [
     ...conversationHistory,
-    { role: 'user', content: userMessage }
+    { role: 'user', content: userMessage },
   ];
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+    const response = await claudeFetch({
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      messages: messages
+      messages,
     });
-
     return response.content[0].text;
   } catch (error) {
     console.error('Claude API error:', error);
     throw error;
+  }
+};
+
+/**
+ * Analyze a pasted email/message/text and extract reply-queue metadata.
+ * @param {string} text - Raw pasted content (email, Slack message, memo, etc.)
+ * @param {Array}  grants - Array of grant objects for context matching
+ * @returns {Promise<{
+ *   subject: string,
+ *   from: string,
+ *   urgency: 'low'|'medium'|'high'|'urgent',
+ *   daysUntilDue: number|null,
+ *   infoNeeded: string[],
+ *   summary: string,
+ *   grantWorktag: string|null
+ * }>}
+ */
+export const analyzeReplyItem = async (text, grants = [], options = {}) => {
+  const { contextDocs = [], advisorProfile = '', advisorSummary = '' } = options;
+
+  const grantList = grants.length
+    ? grants.map(g => `- ${g.worktag || g.id}: ${g.title || 'Untitled'}`).join('\n')
+    : '(none on file)';
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const contextSection = contextDocs.length
+    ? `\nCONTEXT WALL (reference documents):\n${contextDocs.map(d => `[${d.title}]\n${d.content.slice(0, 800)}`).join('\n\n---\n\n')}\n`
+    : '';
+
+  // Use the summary for fast analysis if available, else fall back to the first 4,000 chars of the full model
+  const advisorText = options.advisorSummary?.trim() || advisorProfile.slice(0, 4000);
+  const advisorSection = advisorText
+    ? `\nADVISOR PROFILE (boss/supervisor behavioral model — use to calibrate urgency and info needed):\n${advisorText}\n`
+    : '';
+
+  const prompt = `Today is ${today}. You are helping a grant program director manage their inbox.
+
+Analyze the following message and extract structured reply-queue information.
+
+GRANTS ON FILE:
+${grantList}
+${contextSection}${advisorSection}
+MESSAGE:
+---
+${text.slice(0, 4000)}
+---
+
+Return ONLY a JSON object with these fields (no markdown, no commentary):
+{
+  "subject": "short imperative subject line, e.g. 'Reply to NIH re: budget revision'",
+  "from": "sender name and/or email if identifiable, else empty string",
+  "urgency": "low | medium | high | urgent",
+  "daysUntilDue": <integer days until reply should be sent, or null if no deadline detected>,
+  "infoNeeded": ["item 1", "item 2", ...],
+  "summary": "one-sentence plain-English summary of what action is required",
+  "grantWorktag": "matching grant worktag from the list above, or null"
+}
+
+Urgency guide:
+- urgent: explicit today/ASAP deadline or very time-sensitive
+- high: deadline within 3 days or clearly important
+- medium: deadline within 1–2 weeks or moderately important
+- low: no deadline or informational
+
+infoNeeded: list specific pieces of information the user must gather or confirm BEFORE replying. Be concrete (e.g. "Updated Q3 budget numbers", "PI signature on revised scope", "IRB approval status"). Limit to 5 items max.`;
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    let raw = response.content[0].text.trim();
+    raw = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('analyzeReplyItem error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Condense a long advisor/boss profile into a dense operational summary (~2,000 chars)
+ * optimized for AI advice calls. Run once after the user uploads a large model.
+ * @param {string} fullProfile - The full boss behavioral model text
+ * @returns {Promise<string>} - A condensed summary (~300-500 words)
+ */
+export const generateAdvisorSummary = async (fullProfile) => {
+
+  const prompt = `You are condensing a boss/supervisor behavioral model for use as AI system context.
+
+The goal: distill the most operationally useful information into a dense ~400-word summary that an AI assistant can use to:
+- Calibrate urgency of incoming messages
+- Advise on how to frame replies
+- Warn about communication pitfalls
+- Identify what the boss prioritizes
+
+Focus on: communication preferences, hot-button issues, response expectations, decision-making style, what impresses vs. frustrates them, power dynamics, and any recurring patterns.
+
+Be specific and concrete — cut vague generalizations. Preserve exact quotes or examples where they appear in the source.
+
+Format as flowing prose organized into short labeled sections (no more than 5 sections).
+
+FULL PROFILE:
+---
+${fullProfile}
+---
+
+Return ONLY the condensed summary. No intro, no meta-commentary.`;
+
+  const response = await claudeFetch({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  return response.content[0].text.trim();
+};
+
+/**
+ * Generate advisor advice for a specific reply item using the stored boss profile.
+ * @param {Object} replyItem  - The reply queue item (subject, summary, from, infoNeeded, etc.)
+ * @param {Array}  contextDocs - Context wall documents
+ * @param {string} advisorProfile - Boss behavioral model text
+ * @returns {Promise<{
+ *   expectation: string,
+ *   approach: string,
+ *   keyPoints: string[],
+ *   watchOut: string[],
+ *   suggestedTone: string,
+ *   prioritySignal: string
+ * }>}
+ */
+export const getAdvisorAdvice = async (replyItem, contextDocs = [], advisorProfile = '') => {
+
+  const contextSection = contextDocs.length
+    ? `\nCONTEXT WALL:\n${contextDocs.map(d => `[${d.title}]\n${d.content.slice(0, 600)}`).join('\n\n---\n\n')}\n`
+    : '';
+
+  // Use full model for deep advice — no artificial cap (200K context window handles it)
+  const advisorSection = advisorProfile.trim()
+    ? `\nBOSS / SUPERVISOR BEHAVIORAL MODEL:\n${advisorProfile}\n`
+    : '(No advisor profile provided — give general best-practice advice)';
+
+  const prompt = `You are a professional coach helping a grant program director navigate workplace communications.
+${advisorSection}${contextSection}
+SITUATION:
+Subject: ${replyItem.subject || ''}
+From: ${replyItem.from || 'unknown'}
+Urgency: ${replyItem.urgency || 'unknown'}
+Summary: ${replyItem.summary || ''}
+Info needed before replying: ${(replyItem.infoNeeded || []).join('; ') || 'none listed'}
+
+Based on the boss/supervisor behavioral model and context provided, give specific, practical advice on how to handle this situation.
+
+Return ONLY a JSON object (no markdown, no commentary):
+{
+  "expectation": "What your boss most likely expects from you in this situation — be specific based on the model",
+  "approach": "How to approach this reply: framing, level of detail, timing",
+  "keyPoints": ["Key point to include in the reply", "Another key point"],
+  "watchOut": ["Specific pitfall to avoid based on boss's style", "Another thing to watch"],
+  "suggestedTone": "e.g. concise and data-driven | proactive and solution-focused | formal and deferential",
+  "prioritySignal": "One sentence on whether this should jump up or down in your priority queue, and why"
+}
+
+keyPoints and watchOut: 2–4 items each. Be concrete, not generic. Reference the boss model directly if provided.`
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    let raw = response.content[0].text.trim();
+    raw = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('getAdvisorAdvice error:', error);
+    throw error;
+  }
+};
+
+// ── Studio: Roster update parser ─────────────────────────────────────────────
+export const parseRosterUpdate = async (text, students) => {
+
+  const rosterSummary = students
+    .filter(s => s.status === 'Active')
+    .map(s => `${s.name} | ${s.day} | ${s.time} | ${s.location} | Slot: ${s.slot}`)
+    .join('\n');
+
+  const prompt = `You manage a piano studio roster. Parse the teacher's natural-language update into structured changes.
+
+CURRENT ACTIVE STUDENTS:
+${rosterSummary}
+
+TEACHER SAID: "${text}"
+
+Return ONLY a valid JSON array of change objects. Each object must have:
+- "action": one of "discontinue" | "add" | "update"
+- "studentName": name to match against existing students (or new name for "add")
+- "fields": object with fields to set (for "add" or "update")
+
+For "add", include at least: name, location, day, slot, time, sessions (30 or 60), status ("Active"), experienceLevel ("Beginner"/"Intermediate"/"Advanced").
+For "discontinue", only studentName is needed (sets status to Discontinued).
+For "update", studentName + fields object with only the changed keys.
+
+Match student names case-insensitively and by partial match if needed.
+
+Example output:
+[
+  {"action":"discontinue","studentName":"Stella Munthida","fields":{}},
+  {"action":"update","studentName":"Carlos","fields":{"slot":"Thursday 5","day":"Thursday","time":"5:00 PM","location":"Annandale"}},
+  {"action":"add","studentName":"Cristal","fields":{"name":"Cristal","location":"Annandale","day":"Thursday","slot":"Thursday 7","time":"6:30 PM","sessions":30,"status":"Active","experienceLevel":"Beginner","dragonMusic":""}}
+]
+
+Return ONLY the JSON array, no commentary.`;
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    let raw = response.content[0].text.trim();
+    raw = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('parseRosterUpdate error:', error);
+    throw error;
+  }
+};
+
+// ── Studio: Lesson report generator ──────────────────────────────────────────
+export const generateLessonReport = async (student, lessonNotes, contextDocs = []) => {
+
+  const contextText = contextDocs.length > 0
+    ? '\n\nPEDAGOGICAL REFERENCE:\n' + contextDocs.map(d => `## ${d.title}\n${d.content.slice(0, 600)}`).join('\n\n')
+    : '';
+
+  const prompt = `You are an expert piano teacher writing a warm, specific lesson summary for a student and their family.
+
+STUDENT PROFILE:
+Name: ${student.name}
+Age: ${student.age || 'not specified'}
+Level: ${student.experienceLevel || 'Beginner'}
+Dragon Music (current piece): ${student.dragonMusic || 'TBD'}
+Learning Style / Entry Point: ${student.entryPoint || 'not specified'}
+The Trigger (what motivates them): ${student.theTrigger || 'not specified'}
+Current Goal: ${student.currentGoal || 'not specified'}
+The Prescription (teaching approach): ${student.thePrescription || 'standard approach'}
+Current Challenges: ${student.currentChallenges || 'none noted'}
+Acquired Skills: ${student.acquiredSkills || 'still building foundation'}
+Ear Training: ${student.earTraining || 'not specified'}${contextText}
+
+TODAY'S LESSON NOTES:
+${lessonNotes}
+
+Write a 3-paragraph lesson summary report:
+1. What we accomplished today — be specific about pieces, techniques, and moments of breakthrough
+2. The Practice Prescription — exact, actionable steps for this week (what to practice, how, for how long per day)
+3. What's coming next + a warm motivational note addressed to the student by name
+
+Keep it encouraging, specific, and written in your voice as their teacher. Avoid generic phrases.`;
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 900,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return response.content[0].text;
+  } catch (error) {
+    console.error('generateLessonReport error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate daily priorities panel using Haiku (cheap, fast).
+ * Result is cached in localStorage keyed by today's date string so it only
+ * runs once per day even across page reloads.
+ *
+ * @param {Array} grants  - active grants
+ * @param {Array} tasks   - non-done tasks
+ * @param {Array} meetings - upcoming meetings
+ * @param {Array} todos   - active todos
+ * @param {string} todayStr - ISO date string e.g. '2026-03-03'
+ * @returns {Promise<{urgent: string[], thisWeek: string[], todaysMeetings: string[]}>}
+ */
+export const generateDailyPriorities = async (grants, tasks, meetings, todos, todayStr) => {
+  const CACHE_KEY = `brain_daily_priorities_${todayStr}`;
+
+  // Return cached result if available for today
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch (_) { /* ignore */ }
+
+  const today = new Date(todayStr);
+  const weekEnd = new Date(today);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const urgentTasks = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    const due = new Date(t.dueDate);
+    return due <= today && t.status !== 'Done';
+  });
+
+  const thisWeekTasks = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    const due = new Date(t.dueDate);
+    return due > today && due <= weekEnd && t.status !== 'Done';
+  });
+
+  const todayMeetings = meetings.filter(m => {
+    if (!m.date) return false;
+    return m.date.slice(0, 10) === todayStr;
+  });
+
+  const prompt = `You are a program manager assistant. Based on the data below, produce a concise daily priorities summary.
+
+Today: ${todayStr}
+Active Grants: ${grants.map(g => g.title).join(', ') || 'none'}
+
+OVERDUE / DUE TODAY tasks (${urgentTasks.length}):
+${urgentTasks.slice(0, 10).map(t => `- [${t.grantId ? 'Grant' : 'General'}] ${t.title}${t.dueDate ? ` (due ${t.dueDate.slice(0, 10)})` : ''}`).join('\n') || 'none'}
+
+DUE THIS WEEK tasks (${thisWeekTasks.length}):
+${thisWeekTasks.slice(0, 8).map(t => `- ${t.title} (due ${t.dueDate.slice(0, 10)})`).join('\n') || 'none'}
+
+TODAY'S MEETINGS (${todayMeetings.length}):
+${todayMeetings.map(m => `- ${m.title}${m.date ? ` at ${new Date(m.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}`).join('\n') || 'none'}
+
+OPEN TO-DOs (${todos.length}):
+${todos.slice(0, 5).map(t => `- ${t.text}`).join('\n') || 'none'}
+
+Reply with ONLY valid JSON in this exact shape — no markdown, no explanation:
+{
+  "urgent": ["concise action phrase 1", "concise action phrase 2"],
+  "thisWeek": ["concise action phrase 1", "concise action phrase 2"],
+  "todaysMeetings": ["meeting label 1", "meeting label 2"]
+}
+
+Keep each item under 60 characters. Max 5 items per array. If an array would be empty, use [].`;
+
+  try {
+    const response = await claudeFetch({
+      model: 'claude-haiku-4-5',
+      max_tokens: 512,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const text = response.content[0].text.trim();
+    // Strip markdown fences if present
+    const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    const result = JSON.parse(json);
+
+    // Cache for the day
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(result)); } catch (_) { /* ignore */ }
+
+    // Clean up yesterday's cache key
+    try {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('brain_daily_priorities_') && k !== CACHE_KEY);
+      keys.forEach(k => localStorage.removeItem(k));
+    } catch (_) { /* ignore */ }
+
+    return result;
+  } catch (error) {
+    console.error('generateDailyPriorities error:', error);
+    return { urgent: [], thisWeek: [], todaysMeetings: [] };
   }
 };

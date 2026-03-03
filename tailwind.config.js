@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -176,27 +177,27 @@ export default {
           900: '#142e18',
         },
 
-        // REMAP gray → warm neutral (slightly yellow-tinted)
+        // REMAP gray → cool slate neutrals
         gray: {
-          50:  '#fefdf5',
-          100: '#fdf8e1',
-          200: '#f5f0dc',
-          300: '#e8e0c8',
-          400: '#c8bfa4',
-          500: '#9e9178',
-          600: '#756855',
-          700: '#524838',
-          800: '#332d22',
-          900: '#1a1710',
+          50:  '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
         },
 
-        // Surface utilities
+        // Surface utilities — neutral cool grays
         surface: {
-          50:  '#fefdf5',
-          100: '#fdf8e1',
-          200: '#fcf0b8',
-          300: '#f9d779',
-          400: '#f5c23a',
+          50:  '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
         },
 
         success: '#5a9d62',
@@ -205,6 +206,11 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        'page':    ['1.75rem', { lineHeight: '2rem',   fontWeight: '700' }],
+        'section': ['1.125rem', { lineHeight: '1.5rem', fontWeight: '600' }],
+        'label':   ['0.75rem',  { lineHeight: '1rem',   fontWeight: '500', letterSpacing: '0.05em' }],
       },
     },
   },
