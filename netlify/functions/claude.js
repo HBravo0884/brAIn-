@@ -1,27 +1,29 @@
 // Netlify serverless function: proxies Claude API calls.
 // ANTHROPIC_API_KEY is set in Netlify environment variables — never exposed to the browser.
 
-export default async (req, context) => {
-  if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+exports.handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: 'ANTHROPIC_API_KEY environment variable not set on server.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'ANTHROPIC_API_KEY environment variable not set on server.' }),
+    };
   }
 
   let body;
   try {
-    body = await req.json();
+    body = JSON.parse(event.body);
   } catch {
-    return new Response(
-      JSON.stringify({ error: 'Invalid JSON body.' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    );
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Invalid JSON body.' }),
+    };
   }
 
   const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -36,10 +38,9 @@ export default async (req, context) => {
   });
 
   const data = await anthropicRes.json();
-  return new Response(JSON.stringify(data), {
-    status: anthropicRes.status,
+  return {
+    statusCode: anthropicRes.status,
     headers: { 'Content-Type': 'application/json' },
-  });
+    body: JSON.stringify(data),
+  };
 };
-
-export const config = { path: '/api/claude' };
