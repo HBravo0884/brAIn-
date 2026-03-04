@@ -10,7 +10,7 @@
  * 5. Copy the Client ID and paste it in Settings → Google Drive
  */
 
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const FOLDER_NAME = 'brAIn Backups';
 const FILE_NAME   = 'brAIn_backup.json';
 
