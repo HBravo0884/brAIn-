@@ -1,0 +1,165 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "brAIn API",
+    "description": "Create and manage meetings, tasks, and todos in the brAIn app.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://executivebrain.netlify.app/.netlify/functions" }
+  ],
+  "paths": {
+    "/api": {
+      "get": {
+        "operationId": "getData",
+        "summary": "Read data from brAIn",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["summary", "meetings", "tasks", "todos", "grants"]
+            },
+            "description": "Which data to fetch. Use 'summary' for a quick overview."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Requested data" }
+        }
+      },
+      "post": {
+        "operationId": "createRecord",
+        "summary": "Create a meeting, task, or todo",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["meetings", "tasks", "todos"]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "title": "Meeting",
+                    "type": "object",
+                    "properties": {
+                      "title":       { "type": "string", "description": "Meeting title" },
+                      "date":        { "type": "string", "format": "date-time", "description": "ISO 8601 datetime, e.g. 2026-03-10T14:00:00" },
+                      "duration":    { "type": "integer", "description": "Duration in minutes (default 60)" },
+                      "location":    { "type": "string" },
+                      "attendees":   { "type": "string", "description": "Comma-separated names" },
+                      "description": { "type": "string" },
+                      "notes":       { "type": "string" },
+                      "type":        { "type": "string", "enum": ["meeting", "deadline", "milestone"], "default": "meeting" }
+                    },
+                    "required": ["title", "date"]
+                  },
+                  {
+                    "title": "Task",
+                    "type": "object",
+                    "properties": {
+                      "title":       { "type": "string" },
+                      "description": { "type": "string" },
+                      "priority":    { "type": "string", "enum": ["high", "medium", "low"], "default": "medium" },
+                      "status":      { "type": "string", "enum": ["To Do", "In Progress", "Done"], "default": "To Do" },
+                      "dueDate":     { "type": "string", "format": "date" }
+                    },
+                    "required": ["title"]
+                  },
+                  {
+                    "title": "Todo",
+                    "type": "object",
+                    "properties": {
+                      "text":      { "type": "string" },
+                      "priority":  { "type": "string", "enum": ["high", "medium", "normal"], "default": "normal" },
+                      "dueDate":   { "type": "string", "format": "date" },
+                      "completed": { "type": "boolean", "default": false }
+                    },
+                    "required": ["text"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created record with its assigned id" }
+        }
+      },
+      "patch": {
+        "operationId": "updateRecord",
+        "summary": "Update an existing meeting, task, or todo by id",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["meetings", "tasks", "todos"] }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The id of the record to update"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Fields to update. Only include fields you want to change."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated record" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteRecord",
+        "summary": "Delete a meeting, task, or todo by id",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["meetings", "tasks", "todos"] }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Use your BRAIN_API_KEY value as the bearer token"
+      }
+    }
+  },
+  "security": [{ "ApiKeyAuth": [] }]
+}
