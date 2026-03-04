@@ -1,0 +1,15 @@
+{
+  "name": "brain-mcp-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP server for brAIn — gives Claude read/write access to grants, tasks, meetings, todos, and more",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

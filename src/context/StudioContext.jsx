@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { storage } from '../utils/storage';
 import { INITIAL_STUDENTS } from '../data/initialStudents';
 import { StudentSchema, validateSafe } from '../utils/schemas';
+import { syncEntity, pullEntityFromSupabase, mergeWithSupabase, isSupabaseEnabled } from '../utils/supabase';
 
 const StudioContext = createContext();
 
@@ -37,10 +38,21 @@ export const StudioProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Persist students to localStorage (debounced)
+  // Pull students from Supabase on mount — merge newer records
+  useEffect(() => {
+    if (loading || !isSupabaseEnabled()) return;
+    pullEntityFromSupabase('students').then(remote => {
+      if (remote?.length) setStudents(prev => mergeWithSupabase(prev, remote));
+    }).catch(() => {});
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist students to localStorage (debounced) + sync to Supabase
   useEffect(() => {
     if (loading) return;
-    const t = setTimeout(() => storage.setStudents(students), 300);
+    const t = setTimeout(() => {
+      storage.setStudents(students);
+      if (isSupabaseEnabled()) syncEntity('students', students).catch(() => {});
+    }, 300);
     return () => clearTimeout(t);
   }, [students, loading]);
 

@@ -50,7 +50,7 @@ const Layout = ({ children }) => {
   const [showConflicts, setShowConflicts] = useState(false);
   const [quotaPercent, setQuotaPercent] = useState(null);
   const [showCaptureBar, setShowCaptureBar] = useState(false);
-  const { conflicts, replyQueue, addTodo, tasks, meetings, grants, todos, paymentRequests } = useApp();
+  const { conflicts, replyQueue, addTodo, tasks, meetings, grants, todos, paymentRequests, syncStatus } = useApp();
 
   // On tablet: sidebar always collapsed (icons only). On mobile: hidden (bottom nav used).
   const effectiveSidebarOpen = isMobile ? false : (isTablet ? false : sidebarOpen);
@@ -224,6 +224,17 @@ const Layout = ({ children }) => {
             <div className="flex-1">
               <GlobalSearch />
             </div>
+            {/* Supabase sync status dot */}
+            {syncStatus !== 'idle' && (
+              <span
+                title={syncStatus === 'syncing' ? 'Syncing to cloud…' : syncStatus === 'synced' ? 'Synced to cloud' : 'Sync error — changes saved locally'}
+                className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                  syncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
+                  syncStatus === 'synced'  ? 'bg-green-500' :
+                  'bg-red-500'
+                }`}
+              />
+            )}
             {/* Data Sync — icon only */}
             <button
               onClick={() => setShowSync(true)}

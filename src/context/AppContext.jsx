@@ -4,6 +4,7 @@ import { detectBudgetGrantMismatch, buildDocumentConflicts, dedupeConflicts } fr
 import { analyzeDocumentForConflicts } from '../utils/ai';
 import { StudioProvider } from './StudioContext';
 import { GrantSchema, BudgetSchema, MeetingSchema, TaskSchema, TodoSchema, validateSafe } from '../utils/schemas';
+import { pullAllFromSupabase, mergeWithSupabase, syncEntity, isSupabaseEnabled } from '../utils/supabase';
 
 const AppContext = createContext();
 
@@ -34,6 +35,7 @@ export const AppProvider = ({ children }) => {
   const [replyQueue, setReplyQueue] = useState([]);
   const [replyContextDocs, setReplyContextDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const analyzedDocIds = useRef(null); // initialized from storage in load effect
 
   // Load data from localStorage on mount
@@ -74,6 +76,53 @@ export const AppProvider = ({ children }) => {
     };
     loadData();
   }, []);
+
+  // Pull from Supabase on mount — merge any records newer than localStorage
+  useEffect(() => {
+    if (loading || !isSupabaseEnabled()) return;
+    setSyncStatus('syncing');
+    pullAllFromSupabase().then(remote => {
+      if (!remote) { setSyncStatus('error'); return; }
+      if (remote.grants?.length)               setGrants(prev => mergeWithSupabase(prev, remote.grants));
+      if (remote.budgets?.length)              setBudgets(prev => mergeWithSupabase(prev, remote.budgets));
+      if (remote.tasks?.length)                setTasks(prev => mergeWithSupabase(prev, remote.tasks));
+      if (remote.meetings?.length)             setMeetings(prev => mergeWithSupabase(prev, remote.meetings));
+      if (remote.todos?.length)                setTodos(prev => mergeWithSupabase(prev, remote.todos));
+      if (remote.paymentRequests?.length)      setPaymentRequests(prev => mergeWithSupabase(prev, remote.paymentRequests));
+      if (remote.travelRequests?.length)       setTravelRequests(prev => mergeWithSupabase(prev, remote.travelRequests));
+      if (remote.giftCardDistributions?.length) setGiftCardDistributions(prev => mergeWithSupabase(prev, remote.giftCardDistributions));
+      if (remote.documents?.length)            setDocuments(prev => mergeWithSupabase(prev, remote.documents));
+      if (remote.knowledgeDocs?.length)        setKnowledgeDocs(prev => mergeWithSupabase(prev, remote.knowledgeDocs));
+      if (remote.personnel?.length)            setPersonnel(prev => mergeWithSupabase(prev, remote.personnel));
+      if (remote.templates?.length)            setTemplates(prev => mergeWithSupabase(prev, remote.templates));
+      if (remote.taskTypes?.length)            setTaskTypes(prev => mergeWithSupabase(prev, remote.taskTypes));
+      setSyncStatus('synced');
+    }).catch(() => setSyncStatus('error'));
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync all entities to Supabase after changes (2s debounce, background)
+  useEffect(() => {
+    if (loading || !isSupabaseEnabled()) return;
+    const t = setTimeout(() => {
+      setSyncStatus('syncing');
+      Promise.all([
+        syncEntity('grants', grants),
+        syncEntity('budgets', budgets),
+        syncEntity('tasks', tasks),
+        syncEntity('meetings', meetings),
+        syncEntity('todos', todos),
+        syncEntity('paymentRequests', paymentRequests),
+        syncEntity('travelRequests', travelRequests),
+        syncEntity('giftCardDistributions', giftCardDistributions),
+        syncEntity('documents', documents),
+        syncEntity('knowledgeDocs', knowledgeDocs),
+        syncEntity('personnel', personnel),
+        syncEntity('templates', templates),
+        syncEntity('taskTypes', taskTypes),
+      ]).then(() => setSyncStatus('synced')).catch(() => setSyncStatus('error'));
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [grants, budgets, tasks, meetings, todos, paymentRequests, travelRequests, giftCardDistributions, documents, knowledgeDocs, personnel, templates, taskTypes, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced localStorage persistence — coalesces rapid state updates into a
   // single write 300 ms after the last change, preventing layout thrash on bulk
@@ -621,10 +670,11 @@ export const AppProvider = ({ children }) => {
     replyContextDocs,
     addReplyContextDoc,
     deleteReplyContextDoc,
+    syncStatus,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [grants, budgets, templates, tasks, documents, paymentRequests, travelRequests,
     giftCardDistributions, meetings, todos, settings, loading, knowledgeDocs, personnel,
-    taskTypes, conflicts, replyQueue, replyContextDocs]);
+    taskTypes, conflicts, replyQueue, replyContextDocs, syncStatus]);
 
   return (
     <AppContext.Provider value={value}>

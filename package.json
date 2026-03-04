@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@hello-pangea/dnd": "^16.6.0",
+    "@supabase/supabase-js": "^2.98.0",
     "date-fns": "^3.3.1",
     "docx": "^8.5.0",
     "frappe-gantt": "^0.6.1",
