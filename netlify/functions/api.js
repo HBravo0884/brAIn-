@@ -16,11 +16,12 @@ const getAll = async (table) => {
 };
 
 exports.handler = async (event) => {
-  // Auth check
+  // Auth check — accept key via header OR query param (for ChatGPT browsing)
   const apiKey = process.env.BRAIN_API_KEY;
   if (apiKey) {
     const auth = event.headers['authorization'] || event.headers['Authorization'] || '';
-    if (auth !== `Bearer ${apiKey}`) {
+    const queryKey = event.queryStringParameters?.key || '';
+    if (auth !== `Bearer ${apiKey}` && queryKey !== apiKey) {
       return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
     }
   }
