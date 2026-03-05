@@ -13,7 +13,7 @@ import {
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff, Mail } from 'lucide-react';
+import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff, Mail, ChevronUp, ChevronDown } from 'lucide-react';
 import { generateAdvisorSummary } from '../utils/ai';
 
 const Settings = () => {
@@ -386,61 +386,56 @@ const Settings = () => {
             </div>
           </Card>
 
-          {/* API Key Card */}
+          {/* API Key Card — collapsed by default, expandable */}
           <Card>
-            <div className="flex items-start gap-3 mb-4">
-              <div className="p-2 bg-primary-100 rounded-lg">
-                <Key size={20} className="text-primary-600" />
+            <button
+              onClick={() => setShowApiKey(v => !v)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <Key size={20} className="text-primary-600" />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-semibold text-gray-900">Claude AI Key</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {apiKey ? 'Key configured — direct API fallback active' : 'Optional — click to configure'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Claude AI Key</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Local dev only — deployed app uses Netlify env var</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="relative">
-                <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-400 outline-none font-mono"
-                />
+              {showApiKey
+                ? <ChevronUp size={16} className="text-gray-400" />
+                : <ChevronDown size={16} className="text-gray-400" />
+              }
+            </button>
+
+            {showApiKey && (
+              <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-400 outline-none font-mono"
+                  />
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setShowApiKey(v => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                  title={showApiKey ? 'Hide key' : 'Show key'}
+                  onClick={handleSaveApiKey}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg transition-colors"
                 >
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {apiKeySaved
+                    ? <><CheckCheck size={16} /> Saved!</>
+                    : <><Save size={16} /> Save API Key</>
+                  }
                 </button>
+                {apiKey && (
+                  <p className="text-xs text-green-600 text-center">
+                    Key saved — used as direct fallback if Netlify proxy times out
+                  </p>
+                )}
               </div>
-              <button
-                onClick={handleSaveApiKey}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg transition-colors"
-              >
-                {apiKeySaved
-                  ? <><CheckCheck size={16} /> Saved!</>
-                  : <><Save size={16} /> Save API Key</>
-                }
-              </button>
-              {apiKey && (
-                <p className="text-xs text-green-600 text-center">
-                  Key configured — AI features are active
-                </p>
-              )}
-              {!apiKey && (
-                <p className="text-xs text-amber-600 text-center">
-                  No key set — AI features are disabled
-                </p>
-              )}
-              <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-                <AlertTriangle size={14} className="text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 leading-relaxed">
-                  <strong>Production:</strong> The deployed app uses <code className="bg-blue-100 px-1 rounded font-mono">ANTHROPIC_API_KEY</code> set in Netlify environment variables — the key never reaches the browser. This field is only needed when running <code className="bg-blue-100 px-1 rounded font-mono">npm run dev</code> (plain Vite, no proxy). Use <code className="bg-blue-100 px-1 rounded font-mono">npm run dev:full</code> for full proxy support.
-                </p>
-              </div>
-            </div>
+            )}
           </Card>
 
           <Card>
