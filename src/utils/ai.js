@@ -1360,7 +1360,7 @@ export const generateStatusBriefing = async (data, type = 'full', model = 'claud
   const meetingsStr = meetings.length > 0
     ? [
         upcomingMeetings.length ? 'Upcoming:\n' + upcomingMeetings.map(m =>
-          `  • ${m.date} | ${m.title || 'Meeting'}${m.attendees?.length ? ' | Attendees: ' + m.attendees.join(', ') : ''}${m.notes ? '\n    Notes: ' + m.notes.slice(0, 200) : ''}`
+          `  • ${m.date} | ${m.title || 'Meeting'}${m.attendees ? ' | Attendees: ' + (Array.isArray(m.attendees) ? m.attendees.join(', ') : m.attendees) : ''}${m.notes ? '\n    Notes: ' + m.notes.slice(0, 200) : ''}`
         ).join('\n') : '',
         pastMeetings.length ? 'Recent past:\n' + pastMeetings.map(m =>
           `  • ${m.date} | ${m.title || 'Meeting'}${m.actionItems?.length ? '\n    Action items: ' + m.actionItems.slice(0, 3).join('; ') : ''}`
@@ -1503,6 +1503,12 @@ export const buildFullDataSnapshot = (data) => {
 
   const fmt = (val) => val == null || val === '' ? '—' : String(val);
   const fmtMoney = (val) => `$${(Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // attendees can be a string or an array depending on how the meeting was saved
+  const fmtAttendees = (val) => {
+    if (!val) return null;
+    if (Array.isArray(val)) return val.length ? val.join(', ') : null;
+    return String(val) || null;
+  };
 
   let out = '';
 
@@ -1655,7 +1661,7 @@ Sections: Grants · Budgets · Tasks · Payment Requests · Travel Requests · G
     upcomingMtgs.forEach(m => {
       out += `• ${fmt(m.date)}${m.time ? ' ' + m.time : ''} — ${fmt(m.title)}\n`;
       if (m.location) out += `  Location: ${fmt(m.location)}\n`;
-      if (m.attendees?.length) out += `  Attendees: ${m.attendees.join(', ')}\n`;
+      const att = fmtAttendees(m.attendees); if (att) out += `  Attendees: ${att}\n`;
       if (m.agenda) out += `  Agenda: ${m.agenda}\n`;
       if (m.notes) out += `  Notes: ${m.notes}\n`;
       if (m.actionItems?.length) out += `  Action Items:\n${m.actionItems.map(a => `    • ${a}`).join('\n')}\n`;
@@ -1666,7 +1672,7 @@ Sections: Grants · Budgets · Tasks · Payment Requests · Travel Requests · G
     out += sub(`Past meetings (${pastMtgs.length})`);
     pastMtgs.forEach(m => {
       out += `• ${fmt(m.date)} — ${fmt(m.title)}\n`;
-      if (m.attendees?.length) out += `  Attendees: ${m.attendees.join(', ')}\n`;
+      const att = fmtAttendees(m.attendees); if (att) out += `  Attendees: ${att}\n`;
       if (m.notes) out += `  Notes: ${m.notes}\n`;
       if (m.actionItems?.length) out += `  Action Items:\n${m.actionItems.map(a => `    • ${a}`).join('\n')}\n`;
       out += '\n';
