@@ -214,6 +214,43 @@ const TOOLS = [
       required: ['title', 'content'],
     },
   },
+  {
+    name: 'scan_gmail',
+    description: 'Scan recent Gmail emails and return suggested action items (todos and tasks). Does NOT auto-add — call add_items_from_scan after user review.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        hours:     { type: 'number', description: 'How many hours back to scan (default: 24)' },
+        maxEmails: { type: 'number', description: 'Maximum emails to fetch (default: 20)' },
+      },
+    },
+  },
+  {
+    name: 'add_items_from_scan',
+    description: 'Write approved items from a Gmail scan to brAIn as todos (personal) or tasks (grant-related).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          description: 'Items to add',
+          items: {
+            type: 'object',
+            properties: {
+              type:     { type: 'string', description: '"todo" or "task"' },
+              text:     { type: 'string', description: 'Item text / title' },
+              priority: { type: 'string', description: '"high", "medium", or "normal"' },
+              dueDate:  { type: 'string', description: 'ISO date or null' },
+              grantId:  { type: 'string', description: 'Grant ID for tasks (optional)' },
+              source:   { type: 'string', description: 'Email source (sender — subject)' },
+            },
+            required: ['type', 'text'],
+          },
+        },
+      },
+      required: ['items'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────────────
@@ -352,6 +389,128 @@ const handlers = {
     const doc = { id: randomId(), title, content, source: source || '', uploadedDate: now(), createdAt: now(), updatedAt: now() };
     await upsertOne('knowledge_docs', doc);
     return doc;
+  },
+
+  async scan_gmail({ hours = 24, maxEmails = 20 } = {}) {
+    const { GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, ANTHROPIC_API_KEY } = process.env;
+    if (!GMAIL_REFRESH_TOKEN) throw new Error('GMAIL_REFRESH_TOKEN not set in mcp-server/.env');
+    if (!ANTHROPIC_API_KEY)   throw new Error('ANTHROPIC_API_KEY not set in mcp-server/.env');
+
+    // 1. Exchange refresh token for access token
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     GMAIL_CLIENT_ID,
+        client_secret: GMAIL_CLIENT_SECRET,
+        refresh_token: GMAIL_REFRESH_TOKEN,
+        grant_type:    'refresh_token',
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) throw new Error(`Gmail auth failed: ${tokenData.error_description || tokenData.error}`);
+    const accessToken = tokenData.access_token;
+
+    // 2. Fetch email list (exclude promotions/social noise)
+    const query = `newer_than:${hours}h -category:promotions -category:social`;
+    const listRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxEmails}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const listData = await listRes.json();
+    if (!listRes.ok) throw new Error(`Gmail list failed: ${listData.error?.message}`);
+    const messages = listData.messages || [];
+    if (messages.length === 0) return { scanned: 0, suggestions: [] };
+
+    // 3. Fetch metadata for each email
+    const emails = await Promise.all(messages.map(async (msg) => {
+      const r = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata` +
+        `&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const d = await r.json();
+      const hdrs = d.payload?.headers || [];
+      return {
+        subject: hdrs.find(h => h.name === 'Subject')?.value || '(no subject)',
+        from:    hdrs.find(h => h.name === 'From')?.value    || '',
+        snippet: d.snippet || '',
+      };
+    }));
+
+    // 4. Classify with Claude Haiku
+    const emailList = emails.map((e, i) =>
+      `${i + 1}. From: ${e.from}\n   Subject: ${e.subject}\n   Preview: ${e.snippet}`
+    ).join('\n\n');
+
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        messages: [{
+          role: 'user',
+          content:
+            `You analyze emails for Héctor Bravo-Rivera, Program Director at Howard University ` +
+            `College of Medicine managing an RWJF grant and a music studio.\n\n` +
+            `Classify each email:\n` +
+            `- ignore: newsletters, automated, no action needed, CC-only\n` +
+            `- todo: personal action (reply, errand, non-grant task)\n` +
+            `- task: grant/research/admin action (budgets, payments, reports, meetings, IRB, travel)\n\n` +
+            `Emails:\n${emailList}\n\n` +
+            `Return ONLY a JSON array with exactly ${emails.length} objects (one per email, same order):\n` +
+            `[{"action":"todo"|"task"|"ignore","text":"brief action","priority":"high"|"medium"|"normal","dueDate":"YYYY-MM-DD or null","source":"sender — subject"}]`,
+        }],
+      }),
+    });
+    const aiData = await aiRes.json();
+    const aiText = aiData.content?.[0]?.text || '[]';
+    const jsonMatch = aiText.match(/\[[\s\S]*\]/);
+    const classified = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+
+    const suggestions = classified
+      .filter(c => c.action !== 'ignore')
+      .map(c => ({
+        type:     c.action,
+        text:     c.text,
+        priority: c.priority || 'normal',
+        dueDate:  c.dueDate  || null,
+        source:   c.source   || '',
+      }));
+
+    return { scanned: emails.length, suggestions };
+  },
+
+  async add_items_from_scan({ items = [] } = {}) {
+    let added = 0;
+    for (const item of items) {
+      if (item.type === 'todo') {
+        const todo = {
+          id: randomId(), text: item.text, completed: false,
+          priority: item.priority || 'normal', dueDate: item.dueDate || null,
+          source: item.source || '', createdAt: now(),
+        };
+        await upsertOne('todos', todo);
+        added++;
+      } else if (item.type === 'task') {
+        const task = {
+          id: randomId(), title: item.text,
+          priority: item.priority === 'normal' ? 'medium' : (item.priority || 'medium'),
+          status: 'To Do', dueDate: item.dueDate || null,
+          grantId: item.grantId || null,
+          description: item.source ? `From Gmail: ${item.source}` : '',
+          createdAt: now(), updatedAt: now(),
+        };
+        await upsertOne('tasks', task);
+        added++;
+      }
+    }
+    return { added };
   },
 };
 

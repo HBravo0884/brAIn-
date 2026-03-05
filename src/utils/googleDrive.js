@@ -247,6 +247,429 @@ const getOrCreateKbFolder = async () => {
   return folder.id;
 };
 
+// ── Structured Folder Architecture ────────────────────────────────────────────
+
+export const DRIVE_FOLDER_DEFS = [
+  {
+    key: 'grant_root', label: '01 — RWJF Grant GRT000937',
+    path: ['01_RWJF_Grant_GRT000937'], isParent: true,
+    color: 'green', icon: 'Award',
+    children: [
+      { key: 'financial', label: 'Financial & Procurement',
+        path: ['01_RWJF_Grant_GRT000937', '01_Financial_and_Procurement'],
+        description: 'PRFs, P-Card receipts (<$2,500 limit), Requisitions (>$3,000), PSC logs (F&A exempt)',
+        accepts: ['pdf','jpg','png','xlsx','csv'], namingHint: 'YYYY-MM-DD__GRT000937__Vendor__PCARD__Amount', color: 'green' },
+      { key: 'aim5', label: 'Aim 5 — Faculty Re-Entry',
+        path: ['01_RWJF_Grant_GRT000937', '02_Aim_5_Faculty_ReEntry'],
+        description: 'RFA, Strategic Priority Matrix, applicant budgets ($15K–$20K max, $3K travel/pub caps)',
+        accepts: ['pdf','docx','xlsx'], color: 'blue' },
+      { key: 'aim4', label: 'Aim 4 — Student Support',
+        path: ['01_RWJF_Grant_GRT000937', '03_Aim_4_Student_Support'],
+        description: 'Hardship grant requests, Food Pantry logs ($8K/yr), travel stipends ($2K/student max)',
+        accepts: ['pdf','docx','xlsx','csv'], color: 'teal' },
+      { key: 'aim2', label: 'Aim 2 — Mini-Med Pipeline',
+        path: ['01_RWJF_Grant_GRT000937', '04_Aim_2_MiniMed_Pipeline'],
+        description: 'Title I school outreach (Harriet Tubman ES, Dunbar HS), mentor training materials',
+        accepts: ['pdf','docx','pptx'], color: 'cyan' },
+      { key: 'aims13', label: 'Aims 1 & 3 — DEI / HUIPP',
+        path: ['01_RWJF_Grant_GRT000937', '05_Aims_1_and_3'],
+        description: 'DEI self-study metrics, dashboard designs, HUIPP materials',
+        accepts: ['pdf','docx','xlsx'], color: 'indigo' },
+    ]
+  },
+  {
+    key: 'ofd_root', label: '02 — OFD / JEDI Operations',
+    path: ['02_OFD_JEDI_Operations'], isParent: true,
+    color: 'purple', icon: 'Briefcase',
+    children: [
+      { key: 'newsletter', label: 'Faculty Focus Newsletter',
+        path: ['02_OFD_JEDI_Operations', '01_Faculty_Focus_Newsletter'],
+        description: 'Constant Contact drafts, publication lists, "Living Legends" features',
+        accepts: ['pdf','docx','png','jpg'], color: 'purple' },
+      { key: 'web', label: 'Web & Digital Assets',
+        path: ['02_OFD_JEDI_Operations', '02_Web_and_Digital_Assets'],
+        description: 'Drupal/Next.js updates, HU standard templates',
+        accepts: ['pdf','png','jpg','zip'], color: 'violet' },
+      { key: 'workshops', label: 'Faculty Tools & Workshops',
+        path: ['02_OFD_JEDI_Operations', '03_Faculty_Tools_Workshops'],
+        description: 'Workshop materials, Poll Everywhere presentation, budget training',
+        accepts: ['pdf','pptx','docx'], color: 'fuchsia' },
+    ]
+  },
+  {
+    key: 'lab_root', label: '03 — NPP Lab Research',
+    path: ['03_NPP_Lab_Research'], isParent: true,
+    color: 'orange', icon: 'FlaskConical',
+    children: [
+      { key: 'aou', label: 'All of Us Comorbidity Study',
+        path: ['03_NPP_Lab_Research', '01_All_of_Us_Comorbidity_Study'],
+        description: 'Python/Hail scripts, demographic tables, VCF extraction logs (HIV/SUD cohorts)',
+        accepts: ['py','csv','txt','pdf'], color: 'orange' },
+      { key: 'prats', label: "P-Rats Manuscript",
+        path: ['03_NPP_Lab_Research', '02_P_Rats_Manuscript'],
+        description: "Phil's operant data logs, Cyclo 3PPC files, BioRender figures",
+        accepts: ['pdf','png','xlsx','docx'], color: 'amber' },
+    ]
+  },
+  {
+    key: 'context_root', label: '04 — brAIn Context Wall',
+    path: ['04_brAIn_Context_Wall_System'], isParent: true,
+    color: 'indigo', icon: 'Brain',
+    children: [
+      { key: 'context_docs', label: 'Context Documents (CW-01–14)',
+        path: ['04_brAIn_Context_Wall_System', '01_Context_Documents'],
+        description: 'Canonical .txt files powering AI routing engine + stakeholder rosters, contact CSVs',
+        accepts: ['txt','csv','pdf'], color: 'indigo' },
+      { key: 'mgl_oracle', label: 'MGL Oracle Model',
+        path: ['04_brAIn_Context_Wall_System', '02_MGL_Oracle_Model'],
+        description: 'MGL v2.0 AI persona prompt — authoritative brevity and budget trimming rules',
+        accepts: ['txt','pdf','docx'], color: 'slate' },
+    ]
+  },
+];
+
+const FOLDER_IDS_KEY = 'brain_gdrive_folder_ids';
+const RECENT_UPLOADS_KEY = 'brain_gdrive_recent_uploads';
+
+/**
+ * Find or create a folder by name under an optional parentId.
+ * Returns the folder ID.
+ */
+const findOrCreateFolder = async (name, parentId) => {
+  const parentClause = parentId ? ` and '${parentId}' in parents` : '';
+  const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`);
+  const searchRes = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,webViewLink)`);
+  const { files } = await searchRes.json();
+  if (files?.length) return { id: files[0].id, webViewLink: files[0].webViewLink };
+
+  const body = { name, mimeType: 'application/vnd.google-apps.folder' };
+  if (parentId) body.parents = [parentId];
+  const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files?fields=id,webViewLink', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return createRes.json();
+};
+
+/**
+ * Recursively creates a folder path (array of names), returns leaf { id, webViewLink }.
+ */
+export const getOrCreateNestedFolder = async (names, parentId = null) => {
+  let current = { id: parentId, webViewLink: null };
+  for (const name of names) {
+    current = await findOrCreateFolder(name, current.id);
+  }
+  return current;
+};
+
+/**
+ * Creates all 14 folders defined in DRIVE_FOLDER_DEFS.
+ * Caches { [key]: { id, webViewLink } } in localStorage.
+ * Calls onProgress({ done, total, label }) for UI feedback.
+ */
+export const initializeDriveFolders = async (onProgress) => {
+  const ids = {};
+  let done = 0;
+
+  // Count total folders (parents + children)
+  const total = DRIVE_FOLDER_DEFS.reduce((acc, def) => acc + 1 + (def.children?.length || 0), 0);
+
+  for (const def of DRIVE_FOLDER_DEFS) {
+    onProgress?.({ done, total, label: `Creating ${def.path[0]}…` });
+    const parentResult = await getOrCreateNestedFolder(def.path);
+    ids[def.key] = { id: parentResult.id, webViewLink: parentResult.webViewLink };
+    done++;
+
+    for (const child of (def.children || [])) {
+      onProgress?.({ done, total, label: `Creating ${child.path[child.path.length - 1]}…` });
+      const childResult = await findOrCreateFolder(child.path[child.path.length - 1], parentResult.id);
+      ids[child.key] = { id: childResult.id, webViewLink: childResult.webViewLink };
+      done++;
+    }
+  }
+
+  localStorage.setItem(FOLDER_IDS_KEY, JSON.stringify(ids));
+  onProgress?.({ done: total, total, label: 'Done' });
+  return ids;
+};
+
+/** Returns cached { [key]: { id, webViewLink } } or {} */
+export const getStoredFolderLinks = () => {
+  try {
+    return JSON.parse(localStorage.getItem(FOLDER_IDS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+/**
+ * Upload a file to a folder identified by its DRIVE_FOLDER_DEFS key.
+ * Resolves the cached folder ID (or creates the folder if missing).
+ * Returns { fileId, webViewLink, fileName }.
+ * Also prepends to brain_gdrive_recent_uploads (max 20 entries).
+ */
+export const uploadToFolderKey = async (file, folderKey, suggestedName) => {
+  // Find the folder def
+  let folderDef = null;
+  for (const def of DRIVE_FOLDER_DEFS) {
+    if (def.key === folderKey) { folderDef = def; break; }
+    const child = def.children?.find(c => c.key === folderKey);
+    if (child) { folderDef = child; break; }
+  }
+  if (!folderDef) throw new Error(`Unknown folder key: ${folderKey}`);
+
+  // Resolve folder ID
+  let folderId;
+  const cached = getStoredFolderLinks();
+  if (cached[folderKey]?.id) {
+    folderId = cached[folderKey].id;
+  } else {
+    const result = await getOrCreateNestedFolder(folderDef.path);
+    folderId = result.id;
+    // Persist the newly created ID
+    cached[folderKey] = { id: result.id, webViewLink: result.webViewLink };
+    localStorage.setItem(FOLDER_IDS_KEY, JSON.stringify(cached));
+  }
+
+  // Upload
+  const token = await getToken();
+  const uploadName = suggestedName || file.name;
+  const metadata = JSON.stringify({ name: uploadName, parents: [folderId] });
+  const form = new FormData();
+  form.append('metadata', new Blob([metadata], { type: 'application/json' }));
+  form.append('file', file);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,name', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Drive upload failed: ${res.status}`);
+  }
+  const data = await res.json();
+  const result = { fileId: data.id, webViewLink: data.webViewLink, fileName: data.name };
+
+  // Append to recent uploads (max 20)
+  const recent = getRecentUploads();
+  recent.unshift({
+    fileId: data.id,
+    fileName: data.name,
+    webViewLink: data.webViewLink,
+    folderKey,
+    folderLabel: folderDef.label,
+    uploadedAt: new Date().toISOString(),
+  });
+  localStorage.setItem(RECENT_UPLOADS_KEY, JSON.stringify(recent.slice(0, 20)));
+
+  return result;
+};
+
+// ── NotebookLM Persistent Briefing Doc ────────────────────────────────────────
+
+const NBLM_DOC_KEY = 'brain_nblm_doc'; // { [type]: { fileId, webViewLink } }
+
+const getNblmDocs = () => {
+  try { return JSON.parse(localStorage.getItem(NBLM_DOC_KEY) || '{}'); } catch { return {}; }
+};
+
+/**
+ * Push a briefing text to a PERSISTENT Google Drive plain-text file.
+ * First call creates the file. Subsequent calls update the same file.
+ * NbLM users add this file once as a source, then just click "Sync".
+ * Returns { fileId, webViewLink, wasUpdated }
+ */
+export const uploadBriefingDoc = async (text, briefingType = 'full') => {
+  const token = await getToken();
+  const label = {
+    full:      'Full Status',
+    tasks:     'Task Focus',
+    budget:    'Budget Focus',
+    executive: 'Executive',
+  }[briefingType] || briefingType;
+  const fileName = `brAIn ${label} Briefing — GRT000937.txt`;
+
+  const docs = getNblmDocs();
+  const existing = docs[briefingType];
+
+  const blob = new Blob([text], { type: 'text/plain' });
+
+  if (existing?.fileId) {
+    // Update existing file content
+    const res = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${existing.fileId}?uploadType=media&fields=id,webViewLink`,
+      { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' }, body: blob }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Drive update failed: ${res.status}`);
+    }
+    return { fileId: existing.fileId, webViewLink: existing.webViewLink, wasUpdated: true };
+  }
+
+  // Create new file — prefer context_docs folder if initialized, else brAIn Backups
+  let parentId = null;
+  try {
+    const stored = getStoredFolderLinks();
+    if (stored?.context_docs?.id) {
+      parentId = stored.context_docs.id; // 04_brAIn_Context_Wall_System/01_Context_Documents
+    } else {
+      parentId = await getOrCreateFolder(); // fallback: brAIn Backups root folder
+    }
+  } catch { /* if it fails just upload to root */ }
+
+  const metadata = JSON.stringify({
+    name: fileName,
+    mimeType: 'text/plain',
+    ...(parentId ? { parents: [parentId] } : {}),
+  });
+  const form = new FormData();
+  form.append('metadata', new Blob([metadata], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Drive upload failed: ${res.status}`);
+  }
+  const data = await res.json();
+
+  // Persist the file ID so future calls update the same file
+  docs[briefingType] = { fileId: data.id, webViewLink: data.webViewLink };
+  localStorage.setItem(NBLM_DOC_KEY, JSON.stringify(docs));
+
+  return { fileId: data.id, webViewLink: data.webViewLink, wasUpdated: false };
+};
+
+/** Returns { [type]: { fileId, webViewLink } } for all saved NbLM docs */
+export const getNblmBriefingLinks = () => getNblmDocs();
+
+/** Returns recent upload array from localStorage (max 20) */
+export const getRecentUploads = () => {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_UPLOADS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+// ── AI Classification ──────────────────────────────────────────────────────────
+
+/**
+ * Read up to `maxBytes` of text from a File object.
+ * Works for plain text (.txt, .csv, .py). Returns empty string for binary files.
+ */
+const peekFileText = (file, maxBytes = 2000) => new Promise((resolve) => {
+  const isText = file.type.startsWith('text/') ||
+    /\.(txt|csv|py|md|json|xml|html|js|ts|jsx|tsx)$/i.test(file.name);
+  if (!isText) { resolve(''); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => resolve((e.target.result || '').slice(0, maxBytes));
+  reader.onerror = () => resolve('');
+  reader.readAsText(file.slice(0, maxBytes));
+});
+
+/**
+ * Use Claude Haiku to suggest the best DRIVE_FOLDER_DEFS child key for a file.
+ * Returns { key, label, confidence, reason }
+ */
+export const classifyFileForFolder = async (file) => {
+  const { askClaude } = await import('./ai.js');
+  const snippet = await peekFileText(file);
+
+  // Build a compact folder list for the prompt
+  const folderList = DRIVE_FOLDER_DEFS.flatMap(def =>
+    (def.children || []).map(c => `- key="${c.key}" | "${c.label}" | ${c.description}`)
+  ).join('\n');
+
+  const prompt = `You are a file routing assistant for a program manager at Howard University.
+Given a file, choose the single best destination folder from the list below.
+
+FILE:
+  Name: ${file.name}
+  Type: ${file.type || 'unknown'}
+  Size: ${(file.size / 1024).toFixed(1)} KB
+  Content preview (first 2000 chars):
+${snippet ? `\`\`\`\n${snippet}\n\`\`\`` : '(binary or unreadable)'}
+
+FOLDERS:
+${folderList}
+
+Respond with ONLY valid JSON (no markdown), example:
+{"key":"financial","confidence":0.92,"reason":"Filename contains GRT000937 and PCARD suggesting a procurement receipt"}`;
+
+  const raw = await askClaude(prompt, { model: 'claude-haiku-4-5-20251001', max_tokens: 200 });
+
+  try {
+    const parsed = JSON.parse(raw.trim());
+    // Find the label for the key
+    let label = parsed.key;
+    for (const def of DRIVE_FOLDER_DEFS) {
+      const child = def.children?.find(c => c.key === parsed.key);
+      if (child) { label = child.label; break; }
+    }
+    return { key: parsed.key, label, confidence: parsed.confidence ?? 0.8, reason: parsed.reason ?? '' };
+  } catch {
+    return null;
+  }
+};
+
+// ── Drive Search ───────────────────────────────────────────────────────────────
+
+/**
+ * Search Google Drive for files matching a keyword query.
+ * If scopeToOurFolders=true, restricts search to initialized brAIn folders.
+ * Returns array of { id, name, webViewLink, modifiedTime, folderKey, folderLabel, parentId }.
+ */
+export const searchDriveFiles = async (query, scopeToOurFolders = true) => {
+  const cachedIds = getStoredFolderLinks();
+  const ourFolderIds = Object.values(cachedIds).map(f => f.id).filter(Boolean);
+
+  let q = `fullText contains '${query.replace(/'/g, "\\'")}' and trashed=false and mimeType != 'application/vnd.google-apps.folder'`;
+
+  // Scope to our folders if possible
+  if (scopeToOurFolders && ourFolderIds.length > 0) {
+    const parentClauses = ourFolderIds.map(id => `'${id}' in parents`).join(' or ');
+    q += ` and (${parentClauses})`;
+  }
+
+  const fields = 'files(id,name,webViewLink,modifiedTime,parents,mimeType)';
+  const res = await driveRequest(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fields)}&pageSize=50&orderBy=modifiedTime desc`
+  );
+  const { files = [] } = await res.json();
+
+  // Reverse-map parent IDs to our folder keys
+  const idToKey = {};
+  for (const [key, val] of Object.entries(cachedIds)) {
+    if (val?.id) idToKey[val.id] = key;
+  }
+  const keyToLabel = {};
+  for (const def of DRIVE_FOLDER_DEFS) {
+    keyToLabel[def.key] = def.label;
+    for (const child of (def.children || [])) keyToLabel[child.key] = child.label;
+  }
+
+  return files.map(f => {
+    const parentId = f.parents?.[0] || null;
+    const folderKey = parentId ? idToKey[parentId] : null;
+    return {
+      id: f.id,
+      name: f.name,
+      webViewLink: f.webViewLink,
+      modifiedTime: f.modifiedTime,
+      mimeType: f.mimeType,
+      parentId,
+      folderKey,
+      folderLabel: folderKey ? keyToLabel[folderKey] : null,
+    };
+  });
+};
+
 /**
  * Upload a File object to the brAIn Knowledge folder in Drive.
  * Returns { fileId, webViewLink, fileName }

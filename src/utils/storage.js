@@ -21,6 +21,9 @@ const STORAGE_KEYS = {
   STUDENTS: 'studio_students',
   ANALYZED_DOC_IDS: 'pm_hub_analyzed_doc_ids',
   AI_COST_LOG: 'pm_hub_ai_cost_log',
+  DRIVE_FOLDER_IDS: 'brain_gdrive_folder_ids',
+  DRIVE_RECENT_UPLOADS: 'brain_gdrive_recent_uploads',
+  QUICK_LINKS: 'brain_quick_links',
 };
 
 export const storage = {

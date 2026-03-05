@@ -22,6 +22,8 @@ const Settings            = lazy(() => import('./pages/Settings'));
 const TaskLauncher        = lazy(() => import('./pages/TaskLauncher'));
 const ReplyQueue          = lazy(() => import('./pages/ReplyQueue'));
 const Studio              = lazy(() => import('./pages/Studio'));
+const Drive               = lazy(() => import('./pages/Drive'));
+const Links               = lazy(() => import('./pages/Links'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-64">
@@ -31,9 +33,9 @@ const PageLoader = () => (
 
 function App() {
   return (
-    <ErrorBoundary>
-      <AppProvider>
-        <Router>
+    <Router>
+      <ErrorBoundary>
+        <AppProvider>
           <Layout>
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
@@ -55,14 +57,16 @@ function App() {
                   <Route path="/tasks"           element={<TaskLauncher />} />
                   <Route path="/reply-queue"     element={<ReplyQueue />} />
                   <Route path="/studio"          element={<Studio />} />
+                  <Route path="/drive"           element={<Drive />} />
+                  <Route path="/links"           element={<Links />} />
                   <Route path="/settings"        element={<Settings />} />
                 </Routes>
               </Suspense>
             </ErrorBoundary>
           </Layout>
-        </Router>
-      </AppProvider>
-    </ErrorBoundary>
+        </AppProvider>
+      </ErrorBoundary>
+    </Router>
   );
 }
 

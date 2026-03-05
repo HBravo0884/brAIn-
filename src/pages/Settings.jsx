@@ -13,7 +13,7 @@ import {
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff } from 'lucide-react';
+import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff, Mail } from 'lucide-react';
 import { generateAdvisorSummary } from '../utils/ai';
 
 const Settings = () => {
@@ -82,6 +82,29 @@ const Settings = () => {
     } catch (err) {
       setDriveStatus('error');
       setDriveMsg(err.message);
+    }
+  };
+
+  // Gmail Integration state
+  const [gmailStatus, setGmailStatus] = useState(null); // null | 'scanning' | 'success' | 'error'
+  const [gmailMsg, setGmailMsg] = useState('');
+  const [lastGmailScan, setLastGmailScan] = useState(() => localStorage.getItem('brain_gmail_last_scan'));
+
+  const handleScanNow = async () => {
+    setGmailStatus('scanning');
+    setGmailMsg('');
+    try {
+      const res = await fetch('/.netlify/functions/gmail-sync-am', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Scan failed');
+      const ts = new Date().toISOString();
+      localStorage.setItem('brain_gmail_last_scan', ts);
+      setLastGmailScan(ts);
+      setGmailStatus('success');
+      setGmailMsg(`Scan complete — added ${data.added ?? 0} item(s) from ${data.scanned ?? 0} emails.`);
+    } catch (err) {
+      setGmailStatus('error');
+      setGmailMsg(err.message);
     }
   };
 
@@ -654,6 +677,63 @@ const Settings = () => {
                   {driveMsg}
                 </p>
               )}
+            </div>
+          </Card>
+
+          {/* Gmail Integration Card */}
+          <Card>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <Mail size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Gmail Integration</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {lastGmailScan
+                    ? `Last scan: ${new Date(lastGmailScan).toLocaleString()}`
+                    : 'Auto-scans at 8 AM & 2 PM EST'}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <details className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
+                <summary className="cursor-pointer font-medium text-gray-700 list-none flex items-center gap-1">
+                  Setup instructions
+                </summary>
+                <ol className="mt-2 space-y-1 list-decimal list-inside leading-relaxed">
+                  <li>Enable <strong>Gmail API</strong> in Google Cloud Console</li>
+                  <li>Add scope <code className="bg-gray-100 px-1 rounded">gmail.readonly</code> to OAuth consent</li>
+                  <li>Run <code className="bg-gray-100 px-1 rounded">node scripts/gmail-auth.js</code> in terminal</li>
+                  <li>Add <code className="bg-gray-100 px-1 rounded">GMAIL_*</code> vars to Netlify env & <code className="bg-gray-100 px-1 rounded">mcp-server/.env</code></li>
+                  <li>Redeploy — scans run automatically twice daily</li>
+                </ol>
+              </details>
+
+              <button
+                onClick={handleScanNow}
+                disabled={gmailStatus === 'scanning'}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-semibold rounded-lg transition-colors"
+              >
+                {gmailStatus === 'scanning'
+                  ? <><Loader2 size={14} className="animate-spin" /> Scanning…</>
+                  : <><Mail size={14} /> Scan Now</>
+                }
+              </button>
+
+              {gmailMsg && (
+                <p className={`text-xs px-2 py-1.5 rounded ${
+                  gmailStatus === 'error'
+                    ? 'bg-red-50 text-red-700'
+                    : 'bg-green-50 text-green-700'
+                }`}>
+                  {gmailMsg}
+                </p>
+              )}
+
+              <p className="text-xs text-gray-400 text-center leading-relaxed">
+                Classified by Claude Haiku — todos go to Quick Todos, tasks go to Grant Tasks
+              </p>
             </div>
           </Card>
         </div>

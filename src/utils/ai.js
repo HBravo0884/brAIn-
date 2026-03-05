@@ -1284,6 +1284,9 @@ export const generateStatusBriefing = async (data, type = 'full') => {
     travelRequests = [],
     giftCardDistributions = [],
     knowledgeDocs = [],
+    personnel = [],
+    meetings = [],
+    todos = [],
   } = data;
 
   const today = new Date().toISOString().split('T')[0];
@@ -1342,6 +1345,76 @@ export const generateStatusBriefing = async (data, type = 'full') => {
     ? knowledgeDocs.map(d => `  • [${(d.category || 'doc').toUpperCase()}] ${d.title}${d.summary ? ': ' + d.summary : ''}`).join('\n')
     : '  No knowledge base documents.';
 
+  const personnelStr = personnel.length > 0
+    ? personnel.map(p => `  • ${p.name || 'Unknown'} | ${p.role || 'Staff'} | ${p.email || ''}${p.grantRole ? ' | Grant role: ' + p.grantRole : ''}`).join('\n')
+    : '  No personnel records.';
+
+  const upcomingMeetings = meetings
+    .filter(m => m.date && new Date(m.date) >= now)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 10);
+  const pastMeetings = meetings
+    .filter(m => m.date && new Date(m.date) < now)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
+  const meetingsStr = meetings.length > 0
+    ? [
+        upcomingMeetings.length ? 'Upcoming:\n' + upcomingMeetings.map(m =>
+          `  • ${m.date} | ${m.title || 'Meeting'}${m.attendees?.length ? ' | Attendees: ' + m.attendees.join(', ') : ''}${m.notes ? '\n    Notes: ' + m.notes.slice(0, 200) : ''}`
+        ).join('\n') : '',
+        pastMeetings.length ? 'Recent past:\n' + pastMeetings.map(m =>
+          `  • ${m.date} | ${m.title || 'Meeting'}${m.actionItems?.length ? '\n    Action items: ' + m.actionItems.slice(0, 3).join('; ') : ''}`
+        ).join('\n') : '',
+      ].filter(Boolean).join('\n\n')
+    : '  No meetings recorded.';
+
+  const openTodos = todos.filter(t => !t.completed);
+  const todosStr = openTodos.length > 0
+    ? openTodos.map(t => `  • [${t.priority || 'normal'}] ${t.text}${t.dueDate ? ' (due ' + t.dueDate + ')' : ''}`).join('\n')
+    : '  No open personal to-dos.';
+
+  // Raw structured data block — always appended so NbLM can parse numbers directly
+  const rawDataBlock = `
+================================================================================
+RAW STRUCTURED DATA (for NotebookLM reference — do not summarise this section)
+================================================================================
+
+GRANT COUNT: ${grants.length}
+ACTIVE GRANTS: ${grants.filter(g => g.status === 'active' || g.status === 'Active').length}
+TOTAL AWARD VALUE: $${grants.reduce((s, g) => s + (g.amount || 0), 0).toLocaleString()}
+
+TASK TOTALS:
+  Total tasks: ${tasks.length}
+  To Do: ${tasks.filter(t => t.status === 'To Do').length}
+  In Progress: ${tasks.filter(t => t.status === 'In Progress').length}
+  Done: ${tasks.filter(t => t.status === 'Done').length}
+  Overdue: ${overdueTasks.length}
+  Due within 7 days: ${dueSoonTasks.length}
+  High priority open: ${tasks.filter(t => t.priority === 'High' && t.status !== 'Done').length}
+
+FINANCIAL TOTALS:
+  Payment requests: ${paymentRequests.length} (pending: ${paymentRequests.filter(p => p.status === 'pending' || p.status === 'draft').length})
+  Travel requests: ${travelRequests.length}
+  Gift card distributions: ${giftCardDistributions.length}
+  Total gift card value: $${giftCardDistributions.reduce((s, g) => s + (g.amount || 0), 0).toLocaleString()}
+
+PERSONNEL: ${personnel.length} people on record
+MEETINGS: ${meetings.length} total (${upcomingMeetings.length} upcoming)
+OPEN TO-DOS: ${openTodos.length}
+KNOWLEDGE BASE: ${knowledgeDocs.length} documents
+
+GRANT DETAIL RECORDS:
+${grants.map(g => `  ID:${g.id} | ${g.title} | ${g.fundingAgency} | $${(g.amount||0).toLocaleString()} | ${g.status} | ${g.startDate||'?'} to ${g.endDate||'?'} | Worktag:${g.worktag||'N/A'}`).join('\n') || '  none'}
+
+ALL OPEN TASKS (sorted by due date):
+${tasks.filter(t => t.status !== 'Done').sort((a,b) => (a.dueDate||'9999') < (b.dueDate||'9999') ? -1 : 1).map(t =>
+  `  ${t.dueDate||'no date'} | [${t.priority||'med'}] ${t.title} | ${t.status} | ${t.assignee||'unassigned'}`
+).join('\n') || '  none'}
+
+================================================================================
+Document generated: ${today} by brAIn v1.0 | Grant GRT000937 | PI: Dr. Marjorie Gondré-Lewis | PD: Héctor Bravo-Rivera
+================================================================================`;
+
   // --- Build type-specific prompt ---
   const typeInstructions = {
     full: `Generate a COMPREHENSIVE STATUS BRIEFING covering ALL sections below. Use clear markdown headers. Include specific numbers, dates, and names. Flag any overdue items or urgent deadlines prominently. This briefing will be ingested into NotebookLM as a source document, so be thorough and precise.`,
@@ -1354,6 +1427,7 @@ export const generateStatusBriefing = async (data, type = 'full') => {
 
 Today's Date: ${today}
 Grant Program: RWJF Grant GRT000937
+PI: Dr. Marjorie Gondré-Lewis | Program Director: Héctor Bravo-Rivera
 
 === RAW APP DATA ===
 
@@ -1378,6 +1452,15 @@ ${gcdStr}
 KNOWLEDGE BASE DOCUMENTS:
 ${kbStr}
 
+PERSONNEL:
+${personnelStr}
+
+MEETINGS:
+${meetingsStr}
+
+PERSONAL TO-DOS (open):
+${todosStr}
+
 ---
 Now generate the briefing. Use markdown formatting with clear sections. Start with a one-line status summary at the top.`;
 
@@ -1387,7 +1470,305 @@ Now generate the briefing. Use markdown formatting with clear sections. Start wi
     messages: [{ role: 'user', content: prompt }],
   });
 
-  return response.content[0].text.trim();
+  return response.content[0].text.trim() + '\n' + rawDataBlock;
+};
+
+/**
+ * Build a complete, untruncated plain-text snapshot of ALL app data for NotebookLM.
+ * No AI call — pure serialization. Every record, every field.
+ */
+export const buildFullDataSnapshot = (data) => {
+  const {
+    grants = [],
+    budgets = [],
+    tasks = [],
+    paymentRequests = [],
+    travelRequests = [],
+    giftCardDistributions = [],
+    knowledgeDocs = [],
+    personnel = [],
+    meetings = [],
+    todos = [],
+    documents = [],
+    workflows = [],
+    templates = [],
+    replyQueue = [],
+  } = data;
+
+  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+
+  const hr = (label) => `\n${'='.repeat(72)}\n${label}\n${'='.repeat(72)}\n`;
+  const sub = (label) => `\n${'─'.repeat(48)}\n${label}\n${'─'.repeat(48)}\n`;
+
+  const fmt = (val) => val == null || val === '' ? '—' : String(val);
+  const fmtMoney = (val) => `$${(Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  let out = '';
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  out += `brAIn FULL DATA SNAPSHOT
+Generated: ${today}
+Program: RWJF Grant GRT000937
+PI: Dr. Marjorie Gondré-Lewis | Program Director: Héctor Bravo-Rivera
+Sections: Grants · Budgets · Tasks · Payment Requests · Travel Requests · Gift Cards · Personnel · Meetings · To-Dos · Knowledge Base · Documents · Workflows · Templates · Reply Queue
+
+`;
+
+  // ── GRANTS ───────────────────────────────────────────────────────────────
+  out += hr(`GRANTS (${grants.length})`);
+  if (grants.length === 0) {
+    out += 'No grants on record.\n';
+  } else {
+    grants.forEach((g, i) => {
+      out += `[${i + 1}] ${fmt(g.title)}\n`;
+      out += `    Agency:      ${fmt(g.fundingAgency)}\n`;
+      out += `    Amount:      ${fmtMoney(g.amount)}\n`;
+      out += `    Status:      ${fmt(g.status)}\n`;
+      out += `    Period:      ${fmt(g.startDate)} → ${fmt(g.endDate)}\n`;
+      out += `    Worktag:     ${fmt(g.worktag)}\n`;
+      out += `    Cost Center: ${fmt(g.costCenter)}\n`;
+      out += `    PI:          ${fmt(g.principalInvestigator)}\n`;
+      out += `    Description: ${fmt(g.description)}\n`;
+      out += `    Grant #:     ${fmt(g.grantNumber)}\n`;
+      out += `    F&A Rate:    ${fmt(g.faRate)}\n`;
+      if (g.objectives?.length) out += `    Objectives:\n${g.objectives.map(o => `      • ${o}`).join('\n')}\n`;
+      if (g.deliverables?.length) out += `    Deliverables:\n${g.deliverables.map(d => `      • ${fmt(d.title)} | Due: ${fmt(d.dueDate)} | ${fmt(d.status)}`).join('\n')}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── BUDGETS ──────────────────────────────────────────────────────────────
+  out += hr(`BUDGETS (${budgets.length})`);
+  budgets.forEach((b, i) => {
+    const grantTitle = grants.find(g => g.id === b.grantId)?.title || b.grantId || 'Unknown Grant';
+    const totalSpent = (b.categories || []).reduce((s, cat) =>
+      s + (cat.miniPools || []).reduce((ps, p) =>
+        ps + (p.expenses || []).reduce((es, e) => es + (Number(e.amount) || 0), 0), 0), 0);
+    out += sub(`Budget ${i + 1}: ${grantTitle}`);
+    out += `Total Budget:  ${fmtMoney(b.totalBudget)}\n`;
+    out += `Total Spent:   ${fmtMoney(totalSpent)}\n`;
+    out += `Remaining:     ${fmtMoney((b.totalBudget || 0) - totalSpent)}\n\n`;
+    (b.categories || []).forEach(cat => {
+      const catSpent = (cat.miniPools || []).reduce((s, p) =>
+        s + (p.expenses || []).reduce((es, e) => es + (Number(e.amount) || 0), 0), 0);
+      out += `  CATEGORY: ${fmt(cat.name)}\n`;
+      out += `    Allocated: ${fmtMoney(cat.allocated)} | Spent: ${fmtMoney(catSpent)} | Remaining: ${fmtMoney((cat.allocated || 0) - catSpent)}\n`;
+      (cat.miniPools || []).forEach(pool => {
+        const poolSpent = (pool.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        out += `    POOL: ${fmt(pool.description)} | Allocated: ${fmtMoney(pool.allocated)} | Spent: ${fmtMoney(poolSpent)}\n`;
+        if (pool.notes) out += `      Notes: ${pool.notes}\n`;
+        (pool.expenses || []).forEach(e => {
+          out += `      EXPENSE: ${fmt(e.date)} | ${fmt(e.vendor)} | ${fmt(e.description)} | ${fmtMoney(e.amount)}${e.notes ? ' | ' + e.notes : ''}\n`;
+        });
+      });
+      out += '\n';
+    });
+  });
+
+  // ── TASKS ────────────────────────────────────────────────────────────────
+  out += hr(`TASKS (${tasks.length} total)`);
+  const taskGroups = {};
+  tasks.forEach(t => {
+    const s = t.status || 'Other';
+    if (!taskGroups[s]) taskGroups[s] = [];
+    taskGroups[s].push(t);
+  });
+  Object.entries(taskGroups).forEach(([status, arr]) => {
+    out += sub(`${status} (${arr.length})`);
+    arr.sort((a, b) => (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1).forEach(t => {
+      const overdue = t.dueDate && new Date(t.dueDate) < now && t.status !== 'Done' ? ' [OVERDUE]' : '';
+      out += `• ${fmt(t.title)}${overdue}\n`;
+      out += `  Priority: ${fmt(t.priority)} | Due: ${fmt(t.dueDate)} | Assignee: ${fmt(t.assignee)}\n`;
+      if (t.description) out += `  Description: ${t.description}\n`;
+      if (t.tags?.length) out += `  Tags: ${t.tags.join(', ')}\n`;
+      if (t.grantId) out += `  Grant: ${grants.find(g => g.id === t.grantId)?.title || t.grantId}\n`;
+      out += '\n';
+    });
+  });
+
+  // ── PAYMENT REQUESTS ─────────────────────────────────────────────────────
+  out += hr(`PAYMENT REQUESTS (${paymentRequests.length})`);
+  if (paymentRequests.length === 0) {
+    out += 'None on record.\n';
+  } else {
+    paymentRequests.forEach((pr, i) => {
+      out += `[${i + 1}] ${fmt(pr.description || pr.vendor)}\n`;
+      out += `    Vendor: ${fmt(pr.vendor)} | Amount: ${fmtMoney(pr.amount)} | Status: ${fmt(pr.status)}\n`;
+      out += `    Date: ${fmt(pr.date)} | Type: ${fmt(pr.type)} | Worktag: ${fmt(pr.worktag)}\n`;
+      if (pr.notes) out += `    Notes: ${pr.notes}\n`;
+      if (pr.approver) out += `    Approver: ${fmt(pr.approver)}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── TRAVEL REQUESTS ───────────────────────────────────────────────────────
+  out += hr(`TRAVEL REQUESTS (${travelRequests.length})`);
+  if (travelRequests.length === 0) {
+    out += 'None on record.\n';
+  } else {
+    travelRequests.forEach((tr, i) => {
+      out += `[${i + 1}] ${fmt(tr.purpose || tr.destination)}\n`;
+      out += `    Traveler: ${fmt(tr.traveler)} | Destination: ${fmt(tr.destination)}\n`;
+      out += `    Depart: ${fmt(tr.departureDate)} | Return: ${fmt(tr.returnDate)}\n`;
+      out += `    Est. Cost: ${fmtMoney(tr.estimatedCost)} | Status: ${fmt(tr.status)}\n`;
+      if (tr.notes) out += `    Notes: ${tr.notes}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── GIFT CARD DISTRIBUTIONS ───────────────────────────────────────────────
+  out += hr(`GIFT CARD DISTRIBUTIONS (${giftCardDistributions.length})`);
+  if (giftCardDistributions.length === 0) {
+    out += 'None on record.\n';
+  } else {
+    giftCardDistributions.forEach((g, i) => {
+      out += `[${i + 1}] ${fmt(g.recipientName)} | ${fmtMoney(g.amount)} | ${fmt(g.distributionDate)} | ${fmt(g.status)}\n`;
+      if (g.purpose) out += `    Purpose: ${g.purpose}\n`;
+      if (g.studyName) out += `    Study: ${g.studyName}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── PERSONNEL ─────────────────────────────────────────────────────────────
+  out += hr(`PERSONNEL (${personnel.length})`);
+  if (personnel.length === 0) {
+    out += 'No personnel on record.\n';
+  } else {
+    personnel.forEach((p, i) => {
+      out += `[${i + 1}] ${fmt(p.name)}\n`;
+      out += `    Role: ${fmt(p.role)} | Title: ${fmt(p.title)}\n`;
+      out += `    Email: ${fmt(p.email)} | Phone: ${fmt(p.phone)}\n`;
+      if (p.department) out += `    Department: ${fmt(p.department)}\n`;
+      if (p.grantRole) out += `    Grant role: ${fmt(p.grantRole)}\n`;
+      if (p.notes) out += `    Notes: ${p.notes}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── MEETINGS ─────────────────────────────────────────────────────────────
+  out += hr(`MEETINGS (${meetings.length} total)`);
+  const upcomingMtgs = meetings.filter(m => m.date && new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const pastMtgs = meetings.filter(m => !m.date || new Date(m.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (upcomingMtgs.length) {
+    out += sub(`Upcoming (${upcomingMtgs.length})`);
+    upcomingMtgs.forEach(m => {
+      out += `• ${fmt(m.date)}${m.time ? ' ' + m.time : ''} — ${fmt(m.title)}\n`;
+      if (m.location) out += `  Location: ${fmt(m.location)}\n`;
+      if (m.attendees?.length) out += `  Attendees: ${m.attendees.join(', ')}\n`;
+      if (m.agenda) out += `  Agenda: ${m.agenda}\n`;
+      if (m.notes) out += `  Notes: ${m.notes}\n`;
+      if (m.actionItems?.length) out += `  Action Items:\n${m.actionItems.map(a => `    • ${a}`).join('\n')}\n`;
+      out += '\n';
+    });
+  }
+  if (pastMtgs.length) {
+    out += sub(`Past meetings (${pastMtgs.length})`);
+    pastMtgs.forEach(m => {
+      out += `• ${fmt(m.date)} — ${fmt(m.title)}\n`;
+      if (m.attendees?.length) out += `  Attendees: ${m.attendees.join(', ')}\n`;
+      if (m.notes) out += `  Notes: ${m.notes}\n`;
+      if (m.actionItems?.length) out += `  Action Items:\n${m.actionItems.map(a => `    • ${a}`).join('\n')}\n`;
+      out += '\n';
+    });
+  }
+  if (meetings.length === 0) out += 'No meetings on record.\n';
+
+  // ── PERSONAL TO-DOS ───────────────────────────────────────────────────────
+  out += hr(`PERSONAL TO-DOS (${todos.length} total, ${todos.filter(t => !t.completed).length} open)`);
+  const openTodos = todos.filter(t => !t.completed);
+  const doneTodos = todos.filter(t => t.completed);
+  if (openTodos.length) {
+    out += 'OPEN:\n';
+    openTodos.forEach(t => {
+      const overdue = t.dueDate && new Date(t.dueDate) < now ? ' [OVERDUE]' : '';
+      out += `• [${fmt(t.priority)}] ${fmt(t.text)}${overdue}${t.dueDate ? ' | Due: ' + t.dueDate : ''}\n`;
+    });
+  }
+  if (doneTodos.length) {
+    out += '\nCOMPLETED:\n';
+    doneTodos.forEach(t => out += `• ${fmt(t.text)}\n`);
+  }
+  if (todos.length === 0) out += 'No to-dos on record.\n';
+
+  // ── KNOWLEDGE BASE ────────────────────────────────────────────────────────
+  out += hr(`KNOWLEDGE BASE (${knowledgeDocs.length} documents)`);
+  if (knowledgeDocs.length === 0) {
+    out += 'No documents in knowledge base.\n';
+  } else {
+    knowledgeDocs.forEach((d, i) => {
+      out += sub(`KB Doc ${i + 1}: ${fmt(d.title)}`);
+      out += `Category: ${fmt(d.category)} | Added: ${fmt(d.createdAt || d.date)}\n`;
+      if (d.tags?.length) out += `Tags: ${d.tags.join(', ')}\n`;
+      if (d.summary) out += `Summary: ${d.summary}\n`;
+      if (d.content) out += `\nFULL CONTENT:\n${d.content}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── DOCUMENTS ────────────────────────────────────────────────────────────
+  out += hr(`DOCUMENTS (${documents.length})`);
+  if (documents.length === 0) {
+    out += 'No documents on record.\n';
+  } else {
+    documents.forEach((d, i) => {
+      out += `[${i + 1}] ${fmt(d.title || d.name)}\n`;
+      out += `    Type: ${fmt(d.type)} | Date: ${fmt(d.date || d.createdAt)}\n`;
+      if (d.description) out += `    Description: ${d.description}\n`;
+      if (d.content) out += `    Content:\n${d.content}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── WORKFLOWS ────────────────────────────────────────────────────────────
+  out += hr(`WORKFLOWS (${workflows.length})`);
+  if (workflows.length === 0) {
+    out += 'No workflows on record.\n';
+  } else {
+    workflows.forEach((w, i) => {
+      out += sub(`Workflow ${i + 1}: ${fmt(w.title || w.name)}`);
+      out += `Status: ${fmt(w.status)} | Category: ${fmt(w.category)}\n`;
+      if (w.description) out += `Description: ${w.description}\n`;
+      if (w.steps?.length) {
+        out += 'Steps:\n';
+        w.steps.forEach((s, si) => out += `  ${si + 1}. ${fmt(s.title || s.name || s)} — ${fmt(s.status || s.state || '')}\n`);
+      }
+      out += '\n';
+    });
+  }
+
+  // ── TEMPLATES ────────────────────────────────────────────────────────────
+  out += hr(`TEMPLATES (${templates.length})`);
+  if (templates.length === 0) {
+    out += 'No templates on record.\n';
+  } else {
+    templates.forEach((t, i) => {
+      out += sub(`Template ${i + 1}: ${fmt(t.title || t.name)}`);
+      out += `Category: ${fmt(t.category)} | Type: ${fmt(t.type)}\n`;
+      if (t.description) out += `Description: ${t.description}\n`;
+      if (t.content) out += `Content:\n${t.content}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── REPLY QUEUE ───────────────────────────────────────────────────────────
+  out += hr(`REPLY QUEUE (${replyQueue.length})`);
+  if (replyQueue.length === 0) {
+    out += 'No items in reply queue.\n';
+  } else {
+    replyQueue.forEach((r, i) => {
+      out += `[${i + 1}] From: ${fmt(r.from || r.sender)} | Subject: ${fmt(r.subject)}\n`;
+      out += `    Date: ${fmt(r.date)} | Priority: ${fmt(r.priority)} | Status: ${fmt(r.status)}\n`;
+      if (r.body || r.originalEmail) out += `    Message: ${(r.body || r.originalEmail || '').slice(0, 500)}\n`;
+      if (r.draft) out += `    Draft reply: ${r.draft}\n`;
+      out += '\n';
+    });
+  }
+
+  // ── Footer ───────────────────────────────────────────────────────────────
+  out += `\n${'='.repeat(72)}\nEND OF SNAPSHOT — Generated ${today} by brAIn v1.0\nGrant GRT000937 | PI: Dr. Marjorie Gondré-Lewis | PD: Héctor Bravo-Rivera\n${'='.repeat(72)}\n`;
+
+  return out;
 };
 
 /**

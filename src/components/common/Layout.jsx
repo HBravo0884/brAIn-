@@ -25,6 +25,8 @@ import {
   Inbox,
   Music2,
   MoreHorizontal,
+  HardDrive,
+  Link2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { storage } from '../../utils/storage';
@@ -119,6 +121,8 @@ const Layout = ({ children }) => {
     { path: '/reply-queue', icon: Inbox, label: 'Reply Queue', tooltip: 'Reply Queue — Paste emails or messages and let the AI tell you what to do, what info to gather, and when to reply. Syncs to Tasks, Calendar, and Quick To-Do.' },
     { path: '/studio', icon: Music2, label: 'Studio', tooltip: 'Studio — Manage your piano students at Expressions Music Academy: roster, schedule, lesson logs, and AI-generated progress reports.' },
     { path: '/knowledge', icon: BookMarked, label: 'Knowledge', tooltip: 'Knowledge Base — Upload policies, SOPs, and email threads so the AI assistant can reference them' },
+    { path: '/drive', icon: HardDrive, label: 'Drive', tooltip: 'Google Drive — Manage your structured folder architecture and upload grant documents, receipts, and research files' },
+    { path: '/links', icon: Link2, label: 'Quick Links', tooltip: 'Quick Links — Fast access to Workday, BisonHub, PaymentNet, AI tools, and all your external resources' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings', tooltip: 'Settings — Configure your API key, app preferences, and backup/restore your data' },
   ];
 

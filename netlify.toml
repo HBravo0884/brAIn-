@@ -22,3 +22,12 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ── Gmail scheduled scans ──────────────────────────────────────────────────────
+[[functions]]
+  name = "gmail-sync-am"
+  schedule = "0 13 * * *"
+
+[[functions]]
+  name = "gmail-sync-pm"
+  schedule = "0 19 * * *"
