@@ -3,11 +3,12 @@ import { useApp } from '../context/AppContext';
 import {
   generateDocSummary, parseEmailThread, extractTextFromFile,
 } from '../utils/ai';
+import { isConfigured, uploadKnowledgeFileToDrive } from '../utils/googleDrive';
 import {
   BookMarked, Plus, Mail, Search, Trash2, Eye, Tag,
   Loader2, Sparkles, FileText, ChevronDown, ChevronUp,
   X, Upload, AlertCircle, CheckCircle, Users, Calendar,
-  Lightbulb, ArrowRight,
+  Lightbulb, ArrowRight, ExternalLink,
 } from 'lucide-react';
 
 // ── Category config ───────────────────────────────────────────────────────────
@@ -51,6 +52,12 @@ function DocCard({ doc, onView, onDelete }) {
           <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">{doc.title}</h3>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {doc.driveViewLink && (
+            <a href={doc.driveViewLink} target="_blank" rel="noopener noreferrer"
+              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Open full file in Google Drive">
+              <ExternalLink size={14} />
+            </a>
+          )}
           <button onClick={() => onView(doc)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="View full document">
             <Eye size={14} />
           </button>
@@ -213,8 +220,29 @@ function AddDocumentModal({ onSave, onClose }) {
     setError('');
     try {
       const text = await extractTextFromFile(file);
-      set('content', text);
-      if (!form.title) set('title', file.name.replace(/\.[^.]+$/, ''));
+      const title = file.name.replace(/\.[^.]+$/, '');
+      if (!form.title) set('title', title);
+
+      if (isConfigured()) {
+        // Upload original file to Google Drive, store only a 3KB preview locally
+        set('content', text.slice(0, 3000) + (text.length > 3000 ? '\n…[full file stored in Google Drive]' : ''));
+        set('_uploadingToDrive', true);
+        try {
+          const { fileId, webViewLink } = await uploadKnowledgeFileToDrive(file);
+          set('driveFileId', fileId);
+          set('driveViewLink', webViewLink);
+          set('_driveSuccess', true);
+        } catch (driveErr) {
+          // Drive upload failed — fall back to local with 20KB cap
+          set('content', text.slice(0, 20000) + (text.length > 20000 ? '\n…[truncated]' : ''));
+          setError(`Drive upload failed, stored locally: ${driveErr.message}`);
+        } finally {
+          set('_uploadingToDrive', false);
+        }
+      } else {
+        // No Drive configured — store up to 20KB locally
+        set('content', text.slice(0, 20000) + (text.length > 20000 ? '\n…[truncated — connect Google Drive in Settings to store full files]' : ''));
+      }
     } catch (e) {
       setError(`File extraction failed: ${e.message}`);
     } finally {
@@ -240,7 +268,8 @@ function AddDocumentModal({ onSave, onClose }) {
     if (!form.title.trim()) { setError('Title is required.'); return; }
     if (!form.content.trim()) { setError('Content is required.'); return; }
     const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean);
-    onSave({ type: 'document', ...form, tags, summary: form.summary });
+    const { _uploadingToDrive, _driveSuccess, ...rest } = form;
+    onSave({ type: 'document', ...rest, tags });
   };
 
   return (
@@ -255,6 +284,14 @@ function AddDocumentModal({ onSave, onClose }) {
           {error && (
             <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm">
               <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          {form._driveSuccess && form.driveViewLink && (
+            <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
+              <CheckCircle size={14} />
+              <span>Full file saved to Google Drive.</span>
+              <a href={form.driveViewLink} target="_blank" rel="noopener noreferrer" className="underline font-medium ml-auto">Open ↗</a>
             </div>
           )}
 
@@ -289,7 +326,7 @@ function AddDocumentModal({ onSave, onClose }) {
                 disabled={extractingFile}
                 className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50"
               >
-                {extractingFile ? <><Loader2 size={11} className="animate-spin" /> Extracting…</> : <><Upload size={11} /> Upload PDF/Image</>}
+                {extractingFile ? <><Loader2 size={11} className="animate-spin" /> {form._uploadingToDrive ? 'Uploading to Drive…' : 'Extracting…'}</> : <><Upload size={11} /> {isConfigured() ? 'Upload to Drive' : 'Upload PDF/Image'}</>}
               </button>
             </div>
             <textarea
@@ -543,7 +580,8 @@ const KnowledgeBase = () => {
     if (activeFilter !== FILTER_ALL && doc.category !== activeFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return [doc.title, doc.summary, doc.content, (doc.tags || []).join(' ')]
+    // Don't search full content — it's too large and kills performance
+    return [doc.title, doc.summary, (doc.tags || []).join(' '), (doc.emailMeta?.participants || []).join(' ')]
       .join(' ').toLowerCase().includes(q);
   }).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 

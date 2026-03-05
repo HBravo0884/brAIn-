@@ -414,7 +414,12 @@ export const AppProvider = ({ children }) => {
   // Todo operations
   // Knowledge doc operations
   const addKnowledgeDoc = (doc) => {
-    setKnowledgeDocs(prev => [...prev, { id: crypto.randomUUID(), ...doc, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
+    // Cap content at 20KB to prevent localStorage overflow from large email/PDF dumps
+    const MAX = 20_000;
+    const safeDoc = doc.content && doc.content.length > MAX
+      ? { ...doc, content: doc.content.slice(0, MAX) + '\n…[truncated]' }
+      : doc;
+    setKnowledgeDocs(prev => [...prev, { id: crypto.randomUUID(), ...safeDoc, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
 
   const updateKnowledgeDoc = (id, updates) => {

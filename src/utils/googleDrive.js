@@ -227,3 +227,48 @@ export const signOut = () => {
   _tokenClient = null;
   _tokenResolve = null;
 };
+
+// ── Knowledge Doc file storage ─────────────────────────────────────────────────
+
+const KB_FOLDER_NAME = 'brAIn Knowledge';
+
+/** Find or create the brAIn Knowledge folder. Returns folder ID. */
+const getOrCreateKbFolder = async () => {
+  const q = encodeURIComponent(`name='${KB_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const searchRes = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+  const { files } = await searchRes.json();
+  if (files?.length) return files[0].id;
+
+  const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    body: JSON.stringify({ name: KB_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
+  });
+  const folder = await createRes.json();
+  return folder.id;
+};
+
+/**
+ * Upload a File object to the brAIn Knowledge folder in Drive.
+ * Returns { fileId, webViewLink, fileName }
+ */
+export const uploadKnowledgeFileToDrive = async (file) => {
+  const folderId = await getOrCreateKbFolder();
+  const token = await getToken();
+
+  const metadata = JSON.stringify({ name: file.name, parents: [folderId] });
+  const form = new FormData();
+  form.append('metadata', new Blob([metadata], { type: 'application/json' }));
+  form.append('file', file);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,name', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Drive upload failed: ${res.status}`);
+  }
+  const data = await res.json();
+  return { fileId: data.id, webViewLink: data.webViewLink, fileName: data.name };
+};

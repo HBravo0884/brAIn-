@@ -1010,35 +1010,33 @@ const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = [], mee
         (s.currentGoal ? ` | Goal: ${s.currentGoal}` : '')
       ).join('\n');
 
-  // Knowledge Base context
+  // Knowledge Base context — strictly capped to avoid token overflow
   let kbBlock = '';
   if (knowledgeDocs && knowledgeDocs.length > 0) {
-    // Sort: most recently updated first; give full content to top 5, summaries to rest
     const sorted = [...knowledgeDocs].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    const fullDocs = sorted.slice(0, 5);
-    const summaryDocs = sorted.slice(5);
+    // Only include top 12 docs; email/gmail docs get no raw content (summaries only)
+    const capped = sorted.slice(0, 12);
 
-    const formatDoc = (doc, full) => {
+    const formatDoc = (doc) => {
       const catLabel = (doc.category || doc.type || 'doc').toUpperCase();
+      const isEmail = catLabel === 'EMAIL' || catLabel === 'MEETING' || doc.emailMeta;
       let out = `[${catLabel}] "${doc.title}"`;
-      if (doc.summary) out += `\nSummary: ${doc.summary}`;
+      if (doc.summary) out += `\nSummary: ${doc.summary.slice(0, 200)}`;
       if (doc.emailMeta) {
-        if (doc.emailMeta.participants?.length) out += `\nParticipants: ${doc.emailMeta.participants.join(', ')}`;
+        if (doc.emailMeta.participants?.length) out += `\nParticipants: ${doc.emailMeta.participants.slice(0, 5).join(', ')}`;
         if (doc.emailMeta.dateRange) out += `\nDate: ${doc.emailMeta.dateRange}`;
-        if (doc.emailMeta.keyDecisions?.length) out += `\nKey Decisions:\n${doc.emailMeta.keyDecisions.map(d => `  • ${d}`).join('\n')}`;
-        if (doc.emailMeta.actionItems?.length) out += `\nAction Items:\n${doc.emailMeta.actionItems.map(a => `  • ${a}`).join('\n')}`;
+        if (doc.emailMeta.keyDecisions?.length) out += `\nKey Decisions:\n${doc.emailMeta.keyDecisions.slice(0, 3).map(d => `  • ${d.slice(0, 120)}`).join('\n')}`;
+        if (doc.emailMeta.actionItems?.length) out += `\nAction Items:\n${doc.emailMeta.actionItems.slice(0, 3).map(a => `  • ${a.slice(0, 120)}`).join('\n')}`;
       }
-      if (full && doc.content) {
-        out += `\nContent:\n${doc.content.slice(0, 800)}${doc.content.length > 800 ? '…' : ''}`;
+      // Non-email docs get a short content snippet
+      if (!isEmail && doc.content) {
+        out += `\nContent:\n${doc.content.slice(0, 400)}${doc.content.length > 400 ? '…' : ''}`;
       }
       return out;
     };
 
-    const parts = [
-      ...fullDocs.map(d => formatDoc(d, true)),
-      ...summaryDocs.map(d => formatDoc(d, false)),
-    ];
-    kbBlock = `\n\n=== KNOWLEDGE BASE (${knowledgeDocs.length} docs) ===\nReference these documents when answering questions about policies, decisions, or prior communications.\n\n${parts.join('\n\n---\n\n')}`;
+    const parts = capped.map(formatDoc);
+    kbBlock = `\n\n=== KNOWLEDGE BASE (${knowledgeDocs.length} docs total, showing ${capped.length} most recent) ===\n\n${parts.join('\n\n---\n\n')}`;
   }
 
   return `You are the AI Assistant for RWJF Grant GRT000937 Program Manager Hub.
@@ -1144,8 +1142,11 @@ export const askClaudeWithGlobalTools = async (
     userContent = blocks;
   }
 
+  // Keep only the last 20 messages to prevent token overflow from long conversations
+  const trimmedHistory = conversationHistory.slice(-20);
+
   let messages = [
-    ...conversationHistory,
+    ...trimmedHistory,
     { role: 'user', content: userContent },
   ];
 
