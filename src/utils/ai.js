@@ -1274,7 +1274,7 @@ export const askClaudeWithGlobalTools = async (
  * @param {'full'|'tasks'|'budget'|'executive'} type
  * @returns {Promise<string>} Formatted briefing markdown
  */
-export const generateStatusBriefing = async (data, type = 'full') => {
+export const generateStatusBriefing = async (data, type = 'full', model = 'claude-opus-4-6') => {
 
   const {
     grants = [],
@@ -1465,7 +1465,7 @@ ${todosStr}
 Now generate the briefing. Use markdown formatting with clear sections. Start with a one-line status summary at the top.`;
 
   const response = await claudeFetch({
-    model: 'claude-opus-4-6',
+    model,
     max_tokens: type === 'executive' ? 1024 : 3000,
     messages: [{ role: 'user', content: prompt }],
   });

@@ -106,6 +106,7 @@ const BriefingGenerator = ({ onClose }) => {
   } = useApp();
 
   const [selectedType, setSelectedType] = useState('full');
+  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-6');
   const [briefing, setBriefing] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -130,7 +131,8 @@ const BriefingGenerator = ({ onClose }) => {
     try {
       const result = await generateStatusBriefing(
         { grants, budgets, tasks, paymentRequests, travelRequests, giftCardDistributions, knowledgeDocs, personnel, meetings, todos },
-        selectedType
+        selectedType,
+        selectedModel
       );
       setBriefing(result);
     } catch (err) {
@@ -244,6 +246,28 @@ const BriefingGenerator = ({ onClose }) => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Model selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 font-medium">Model:</span>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+              <button
+                onClick={() => setSelectedModel('claude-sonnet-4-6')}
+                className={`px-3 py-1.5 transition-colors ${selectedModel === 'claude-sonnet-4-6' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Sonnet — Fast
+              </button>
+              <button
+                onClick={() => setSelectedModel('claude-opus-4-6')}
+                className={`px-3 py-1.5 border-l border-gray-200 transition-colors ${selectedModel === 'claude-opus-4-6' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Opus — Best
+              </button>
+            </div>
+            {selectedModel === 'claude-opus-4-6' && (
+              <span className="text-xs text-amber-600">May timeout on Netlify — use Sonnet if it fails</span>
+            )}
           </div>
 
           {/* Data summary chips */}
