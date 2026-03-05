@@ -1410,6 +1410,59 @@ ${tasks.filter(t => t.status !== 'Done').sort((a,b) => (a.dueDate||'9999') < (b.
 Document generated: ${today} by brAIn v1.0 | Grant GRT000937 | PI: Dr. Marjorie Gondré-Lewis | PD: Héctor Bravo-Rivera
 ================================================================================`;
 
+  // --- Build numbered reference list for citations ---
+  const refs = [];
+  grants.forEach(g => refs.push({
+    label: 'Grant',
+    type: 'grant',
+    id: g.id,
+    detail: `${g.title} | ${g.fundingAgency || 'N/A'} | $${(g.amount||0).toLocaleString()} | ${g.status} | ${g.startDate||'?'} → ${g.endDate||'?'}`,
+  }));
+  budgets.forEach(b => {
+    const gt = grants.find(g => g.id === b.grantId)?.title || 'Unknown Grant';
+    refs.push({ label: 'Budget', type: 'budget', id: b.id, detail: `${gt} | Total $${(b.totalBudget||0).toLocaleString()}` });
+    (b.categories || []).forEach(cat => {
+      const catSpent = (cat.miniPools||[]).reduce((s,p)=>s+(p.expenses||[]).reduce((es,e)=>es+(Number(e.amount)||0),0),0);
+      refs.push({ label: 'Budget Category', type: 'budget_cat', id: cat.id, detail: `${cat.name} (${gt}) | Allocated $${(cat.allocated||0).toLocaleString()} | Spent $${catSpent.toLocaleString()}` });
+    });
+  });
+  tasks.filter(t => t.status !== 'Done').forEach(t => refs.push({
+    label: 'Task',
+    type: 'task',
+    id: t.id,
+    detail: `"${t.title}" | ${t.status} | Priority: ${t.priority||'medium'}${t.dueDate ? ' | Due: '+t.dueDate : ''}${t.assignee ? ' | '+t.assignee : ''}`,
+  }));
+  paymentRequests.forEach(pr => refs.push({
+    label: 'Payment Request',
+    type: 'pr',
+    id: pr.id,
+    detail: `${pr.vendor||pr.description||'Payment'} | $${(pr.amount||0).toLocaleString()} | ${pr.status||'Pending'}${pr.date ? ' | '+pr.date : ''}`,
+  }));
+  travelRequests.forEach(tr => refs.push({
+    label: 'Travel Request',
+    type: 'tr',
+    id: tr.id,
+    detail: `${tr.traveler||'Traveler'} → ${tr.destination||'?'} | ${tr.departureDate||'?'} | $${(tr.estimatedCost||0).toLocaleString()} | ${tr.status||'Pending'}`,
+  }));
+  meetings.slice(0, 20).forEach(m => refs.push({
+    label: 'Meeting',
+    type: 'meeting',
+    id: m.id,
+    detail: `"${m.title||'Meeting'}" | ${m.date||'?'}${m.attendees ? ' | '+(Array.isArray(m.attendees)?m.attendees.join(', '):m.attendees) : ''}${m.notes ? ' | Notes: '+m.notes.slice(0,120) : ''}`,
+  }));
+  personnel.forEach(p => refs.push({
+    label: 'Personnel',
+    type: 'person',
+    id: p.id,
+    detail: `${p.name} | ${p.role||'Staff'} | ${p.email||''}${p.grantRole ? ' | '+p.grantRole : ''}`,
+  }));
+  knowledgeDocs.forEach(d => refs.push({
+    label: 'KB Doc',
+    type: 'kb',
+    id: d.id,
+    detail: `"${d.title}" | ${d.category||'doc'}${d.summary ? ' | '+d.summary.slice(0,150) : ''}`,
+  }));
+
   // --- Build type-specific prompt ---
   const typeInstructions = {
     full: `Generate a COMPREHENSIVE STATUS BRIEFING covering ALL sections below. Use clear markdown headers. Include specific numbers, dates, and names. Flag any overdue items or urgent deadlines prominently. This briefing will be ingested into NotebookLM as a source document, so be thorough and precise.`,
@@ -1457,15 +1510,35 @@ PERSONAL TO-DOS (open):
 ${todosStr}
 
 ---
-Now generate the briefing. Use markdown formatting with clear sections. Start with a one-line status summary at the top.`;
+Now generate the briefing. Use markdown formatting with clear sections. Start with a one-line status summary at the top.
+
+CITATION INSTRUCTIONS:
+When you state a specific fact (an amount, date, status, name, or decision), add a citation like [3] immediately after it, where the number refers to the REFERENCE LIST below.
+Cite sparingly — only for specific verifiable facts, not general statements.
+At the very end of your response, output a line: CITED:[comma-separated list of reference numbers you used, e.g. CITED:1,4,7,12]
+
+REFERENCE LIST:
+${refs.map((r, i) => `[${i + 1}] ${r.label}: ${r.detail}`).join('\n')}`;
 
   const response = await claudeFetch({
     model,
-    max_tokens: type === 'executive' ? 1024 : 3000,
+    max_tokens: type === 'executive' ? 1024 : 3500,
     messages: [{ role: 'user', content: prompt }],
   });
 
-  return response.content[0].text.trim() + '\n' + rawDataBlock;
+  const raw = response.content[0].text.trim();
+
+  // Extract which refs were actually cited
+  const citedMatch = raw.match(/\nCITED:([\d,\s]+)$/);
+  const citedNums = citedMatch
+    ? citedMatch[1].split(',').map(n => parseInt(n.trim())).filter(Boolean)
+    : [];
+  const text = citedMatch ? raw.slice(0, citedMatch.index).trim() : raw;
+
+  // Only return refs that were actually used
+  const usedRefs = citedNums.map(n => refs[n - 1]).filter(Boolean);
+
+  return { text: text + '\n' + rawDataBlock, references: usedRefs, allRefs: refs };
 };
 
 /**

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { generateStatusBriefing, buildSnapshot, SNAPSHOT_TYPES } from '../../utils/ai';
 import { uploadBriefingDoc, getNblmBriefingLinks } from '../../utils/googleDrive';
+import CitedBriefing from './CitedBriefing';
 import {
   X,
   FileText,
@@ -168,7 +169,7 @@ const BriefingGenerator = ({ onClose }) => {
 
   const [selectedType, setSelectedType] = useState('full');
   const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-6');
-  const [briefing, setBriefing] = useState('');
+  const [briefing, setBriefing] = useState(null); // { text, references, allRefs }
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -198,7 +199,7 @@ const BriefingGenerator = ({ onClose }) => {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
-    setBriefing('');
+    setBriefing(null);
     try {
       const result = await generateStatusBriefing(
         { grants, budgets, tasks, paymentRequests, travelRequests, giftCardDistributions, knowledgeDocs, personnel, meetings, todos },
@@ -255,7 +256,7 @@ const BriefingGenerator = ({ onClose }) => {
 
   const handleCopy = async () => {
     if (!briefing) return;
-    await navigator.clipboard.writeText(briefing);
+    await navigator.clipboard.writeText(briefing.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -265,7 +266,7 @@ const BriefingGenerator = ({ onClose }) => {
     const typeLabel = BRIEFING_TYPES.find(t => t.id === selectedType)?.label || 'Briefing';
     const date = new Date().toISOString().split('T')[0];
     const filename = `brAIn_${typeLabel.replace(/\s+/g, '_')}_${date}.txt`;
-    const blob = new Blob([briefing], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([briefing.text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -490,7 +491,7 @@ const BriefingGenerator = ({ onClose }) => {
               {isGenerating ? (
                 <><Loader2 size={18} className="animate-spin" />Generating…</>
               ) : (
-                <><Sparkles size={18} />Generate{briefing ? ' New' : ''} Briefing</>
+                <><Sparkles size={18} />Generate{briefing?.text ? ' New' : ''} Briefing</>
               )}
             </button>
           </div>
@@ -506,55 +507,30 @@ const BriefingGenerator = ({ onClose }) => {
           {briefing && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">Generated Briefing</p>
-                <div className="flex gap-2 flex-wrap justify-end">
-                  <button
-                    onClick={handleCopy}
-                    title="Copy briefing text to clipboard"
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
-                  >
+                <p className="text-sm font-semibold text-gray-700">
+                  Generated Briefing
+                  {briefing.references?.length > 0 && (
+                    <span className="ml-2 text-xs font-normal text-indigo-600">
+                      — click any <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 text-[9px] font-bold border border-indigo-200">N</span> to see source
+                    </span>
+                  )}
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors">
                     {copied ? <CheckCheck size={14} className="text-green-600" /> : <Copy size={14} />}
                     {copied ? 'Copied!' : 'Copy'}
                   </button>
-                  <button
-                    onClick={handleDownload}
-                    title="Download briefing as a .txt file"
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
-                  >
-                    <Download size={14} />
-                    .txt
+                  <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors">
+                    <Download size={14} />.txt
                   </button>
                 </div>
               </div>
 
-              {/* Persistent NbLM link — always the 'full' snapshot */}
-              {driveLinks['full'] && (
-                <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
-                  <HardDrive size={14} className="text-green-600 flex-shrink-0" />
-                  <span className="text-xs text-green-800 font-medium">Add this to NotebookLM once — it stays current:</span>
-                  <a
-                    href={driveLinks['full'].webViewLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                  >
-                    Open in Drive <ExternalLink size={11} />
-                  </a>
-                  <button
-                    onClick={() => handleCopyLink('full', driveLinks['full'].webViewLink)}
-                    className="ml-auto flex-shrink-0 p-1 hover:bg-green-100 rounded"
-                    title="Copy Drive URL"
-                  >
-                    {copiedLink === 'full' ? <CheckCheck size={12} className="text-green-600" /> : <Copy size={12} className="text-green-600" />}
-                  </button>
-                </div>
-              )}
-
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 max-h-72 overflow-y-auto">
-                <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
-                  {briefing}
-                </pre>
-              </div>
+              <CitedBriefing
+                text={briefing.text}
+                references={briefing.references || []}
+                allRefs={briefing.allRefs || []}
+              />
             </div>
           )}
 
