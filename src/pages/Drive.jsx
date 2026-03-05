@@ -634,11 +634,11 @@ export default function Drive() {
             className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg transition-colors">
             <RefreshCw size={16} />
           </button>
-          {DRIVE_FOLDER_DEFS.map(d => folderIds[d.key]?.webViewLink).filter(Boolean)[0] && (
-            <a href={DRIVE_FOLDER_DEFS.map(d => folderIds[d.key]?.webViewLink).filter(Boolean)[0]}
+          {folderIds['brain_root']?.webViewLink && (
+            <a href={folderIds['brain_root'].webViewLink}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              <ExternalLink size={14} />Open Drive
+              <ExternalLink size={14} />Open brAIn Folder
             </a>
           )}
           <button onClick={handleInitialize} disabled={!configured || !!initProgress}

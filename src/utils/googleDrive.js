@@ -249,6 +249,8 @@ const getOrCreateKbFolder = async () => {
 
 // ── Structured Folder Architecture ────────────────────────────────────────────
 
+export const BRAIN_ROOT_FOLDER = 'brAIn';
+
 export const DRIVE_FOLDER_DEFS = [
   {
     key: 'grant_root', label: '01 — RWJF Grant GRT000937',
@@ -371,18 +373,25 @@ export const initializeDriveFolders = async (onProgress) => {
   const ids = {};
   let done = 0;
 
-  // Count total folders (parents + children)
-  const total = DRIVE_FOLDER_DEFS.reduce((acc, def) => acc + 1 + (def.children?.length || 0), 0);
+  // +1 for the brAIn root folder itself
+  const total = 1 + DRIVE_FOLDER_DEFS.reduce((acc, def) => acc + 1 + (def.children?.length || 0), 0);
 
+  // Create the top-level brAIn parent folder first
+  onProgress?.({ done, total, label: `Creating ${BRAIN_ROOT_FOLDER}…` });
+  const rootResult = await findOrCreateFolder(BRAIN_ROOT_FOLDER);
+  ids['brain_root'] = { id: rootResult.id, webViewLink: rootResult.webViewLink };
+  done++;
+
+  // Create each domain folder inside brAIn root
   for (const def of DRIVE_FOLDER_DEFS) {
     onProgress?.({ done, total, label: `Creating ${def.path[0]}…` });
-    const parentResult = await getOrCreateNestedFolder(def.path);
-    ids[def.key] = { id: parentResult.id, webViewLink: parentResult.webViewLink };
+    const domainResult = await findOrCreateFolder(def.path[0], rootResult.id);
+    ids[def.key] = { id: domainResult.id, webViewLink: domainResult.webViewLink };
     done++;
 
     for (const child of (def.children || [])) {
       onProgress?.({ done, total, label: `Creating ${child.path[child.path.length - 1]}…` });
-      const childResult = await findOrCreateFolder(child.path[child.path.length - 1], parentResult.id);
+      const childResult = await findOrCreateFolder(child.path[child.path.length - 1], domainResult.id);
       ids[child.key] = { id: childResult.id, webViewLink: childResult.webViewLink };
       done++;
     }
@@ -508,16 +517,19 @@ export const uploadBriefingDoc = async (text, briefingType = 'full') => {
     return { fileId: existing.fileId, webViewLink: existing.webViewLink, wasUpdated: true };
   }
 
-  // Create new file — prefer context_docs folder if initialized, else brAIn Backups
+  // Create new file — prefer context_docs folder if initialized, else brAIn root folder
   let parentId = null;
   try {
     const stored = getStoredFolderLinks();
     if (stored?.context_docs?.id) {
       parentId = stored.context_docs.id; // 04_brAIn_Context_Wall_System/01_Context_Documents
+    } else if (stored?.brain_root?.id) {
+      parentId = stored.brain_root.id; // brAIn root folder
     } else {
-      parentId = await getOrCreateFolder(); // fallback: brAIn Backups root folder
+      const root = await findOrCreateFolder(BRAIN_ROOT_FOLDER);
+      parentId = root.id;
     }
-  } catch { /* if it fails just upload to root */ }
+  } catch { /* if it fails just upload to Drive root */ }
 
   const metadata = JSON.stringify({
     name: fileName,
