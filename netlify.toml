@@ -24,10 +24,8 @@
   status = 200
 
 # Gmail scheduled scans
-[[functions]]
-  name = "gmail-sync-am"
+[functions."gmail-sync-am"]
   schedule = "0 13 * * *"
 
-[[functions]]
-  name = "gmail-sync-pm"
+[functions."gmail-sync-pm"]
   schedule = "0 19 * * *"
