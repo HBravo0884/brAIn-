@@ -328,6 +328,29 @@ export const DRIVE_FOLDER_DEFS = [
         accepts: ['txt','pdf','docx'], color: 'slate' },
     ]
   },
+  {
+    key: 'transcripts_root', label: '05 — Meeting Transcripts',
+    path: ['05_Meeting_Transcripts'], isParent: true,
+    color: 'rose', icon: 'Mic',
+    children: [
+      { key: 'transcripts_rwjf', label: 'RWJF Grant Meetings',
+        path: ['05_Meeting_Transcripts', '01_RWJF_Grant_Meetings'],
+        description: 'PI syncs, budget reviews, steering committee, RWJF check-ins',
+        accepts: ['txt','pdf','docx','vtt','srt','md'], color: 'rose' },
+      { key: 'transcripts_ofd', label: 'OFD / JEDI Meetings',
+        path: ['05_Meeting_Transcripts', '02_OFD_JEDI_Meetings'],
+        description: 'Faculty Focus planning, DEI committee, OFD leadership meetings',
+        accepts: ['txt','pdf','docx','vtt','srt','md'], color: 'pink' },
+      { key: 'transcripts_lab', label: 'Lab Meetings',
+        path: ['05_Meeting_Transcripts', '03_Lab_Meetings'],
+        description: 'NPP lab meetings, All of Us working group, manuscript discussions',
+        accepts: ['txt','pdf','docx','vtt','srt','md'], color: 'fuchsia' },
+      { key: 'transcripts_general', label: 'General / Other',
+        path: ['05_Meeting_Transcripts', '04_General'],
+        description: 'Howard admin, cross-program meetings, external partner calls',
+        accepts: ['txt','pdf','docx','vtt','srt','md'], color: 'purple' },
+    ]
+  },
 ];
 
 const FOLDER_IDS_KEY = 'brain_gdrive_folder_ids';

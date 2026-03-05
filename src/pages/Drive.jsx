@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   HardDrive, FolderOpen, Upload, ExternalLink, RefreshCw,
   CheckCircle2, Loader2, ChevronDown, ChevronRight, Info, X,
-  Award, Briefcase, FlaskConical, Brain, Clock, Sparkles,
+  Award, Briefcase, FlaskConical, Brain, Mic, Clock, Sparkles,
   Search, FileText, AlertCircle, ChevronDown as ChevDown,
 } from 'lucide-react';
 import {
@@ -31,7 +31,7 @@ const COLOR_MAP = {
   slate:  { border: 'border-l-slate-500',  bg: 'bg-slate-50 dark:bg-slate-950/20',   text: 'text-slate-700 dark:text-slate-400',   badge: 'bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-300' },
 };
 
-const SECTION_ICON_MAP = { Award, Briefcase, FlaskConical, Brain };
+const SECTION_ICON_MAP = { Award, Briefcase, FlaskConical, Brain, Mic };
 
 // Flat list of all child folder defs for override dropdown
 const ALL_CHILD_FOLDERS = DRIVE_FOLDER_DEFS.flatMap(def =>
