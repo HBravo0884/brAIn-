@@ -1,35 +1,30 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
- * Proxy-first Claude API caller.
- * Production / netlify dev: POST to /api/claude (Netlify Function holds ANTHROPIC_API_KEY server-side).
- * Local vite-only dev: falls back to direct SDK call using localStorage or .env key.
+ * Claude API caller.
+ * If a key is saved in localStorage, calls Anthropic directly (no proxy, no timeout limit).
+ * Otherwise routes through the Netlify proxy (ANTHROPIC_API_KEY server-side, 26s limit).
  */
 const claudeFetch = async (payload) => {
-  try {
-    const res = await fetch('/api/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) return res.json();
-    if (res.status !== 404) {
-      const errText = await res.text();
-      throw new Error(`Claude proxy error ${res.status}: ${errText}`);
-    }
-    // 404 = proxy not running (plain vite dev) → fall through to SDK
-  } catch (err) {
-    if (!err.message.startsWith('Claude proxy error') && !(err instanceof TypeError)) throw err;
-    if (err.message.startsWith('Claude proxy error')) throw err;
-  }
-
-  // Local dev fallback: direct SDK (dangerouslyAllowBrowser for dev only)
-  const apiKey =
+  const localKey =
     localStorage.getItem('brain_anthropic_api_key') ||
     import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('No API key. Add one in Settings or run via `npm run dev:full`.');
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  return client.messages.create(payload);
+
+  // Direct SDK call — bypasses Netlify 26s timeout
+  if (localKey) {
+    const client = new Anthropic({ apiKey: localKey, dangerouslyAllowBrowser: true });
+    return client.messages.create(payload);
+  }
+
+  // No local key — use Netlify proxy
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (res.ok) return res.json();
+  const errText = await res.text();
+  throw new Error(`Claude proxy error ${res.status}: ${errText}`);
 };
 
 /**
