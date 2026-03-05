@@ -23,7 +23,7 @@
   to = "/index.html"
   status = 200
 
-# ── Gmail scheduled scans ──────────────────────────────────────────────────────
+# Gmail scheduled scans
 [[functions]]
   name = "gmail-sync-am"
   schedule = "0 13 * * *"
