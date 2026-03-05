@@ -26,16 +26,31 @@ exports.handler = async (event) => {
     };
   }
 
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'pdfs-2024-09-25',
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 24000); // 24s — under Netlify's 26s limit
+
+  let anthropicRes;
+  try {
+    anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'pdfs-2024-09-25',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    return {
+      statusCode: 504,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Claude API request timed out. Try a shorter prompt or switch to Sonnet.' }),
+    };
+  }
+  clearTimeout(timer);
 
   const data = await anthropicRes.json();
   return {
