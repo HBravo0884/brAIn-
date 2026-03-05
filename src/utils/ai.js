@@ -1508,11 +1508,25 @@ export const buildFullDataSnapshot = (data) => {
   let out = '';
 
   // ── Header ──────────────────────────────────────────────────────────────
+  const nowStr = new Date().toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+  });
+  const openTasks = tasks.filter(t => t.status !== 'Done').length;
+  const overdueCt = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== 'Done').length;
   out += `brAIn FULL DATA SNAPSHOT
-Generated: ${today}
+================================================================================
+LAST UPDATED: ${nowStr}
+================================================================================
 Program: RWJF Grant GRT000937
 PI: Dr. Marjorie Gondré-Lewis | Program Director: Héctor Bravo-Rivera
-Sections: Grants · Budgets · Tasks · Payment Requests · Travel Requests · Gift Cards · Personnel · Meetings · To-Dos · Knowledge Base · Documents · Workflows · Templates · Reply Queue
+
+RECORD COUNTS AT TIME OF EXPORT:
+  Grants: ${grants.length} | Budgets: ${budgets.length} | Tasks: ${tasks.length} (${openTasks} open, ${overdueCt} overdue)
+  Payment Requests: ${paymentRequests.length} | Travel Requests: ${travelRequests.length} | Gift Cards: ${giftCardDistributions.length}
+  Personnel: ${personnel.length} | Meetings: ${meetings.length} | To-Dos: ${todos.length}
+  Knowledge Docs: ${knowledgeDocs.length} | Documents: ${documents.length} | Workflows: ${workflows.length} | Templates: ${templates.length}
+================================================================================
 
 `;
 
@@ -1772,13 +1786,260 @@ Sections: Grants · Budgets · Tasks · Payment Requests · Travel Requests · G
   return out;
 };
 
+export const SNAPSHOT_TYPES = {
+  full: {
+    label: 'Full Data Snapshot',
+    description: 'Everything — all sections, all records, zero truncation',
+    filename: 'brAIn Full Data Snapshot — GRT000937.txt',
+    color: 'indigo',
+  },
+  financial: {
+    label: 'Financial',
+    description: 'Budgets (all expenses), payment requests, travel, gift cards',
+    filename: 'brAIn Financial Snapshot — GRT000937.txt',
+    color: 'green',
+  },
+  tasks: {
+    label: 'Tasks & Deadlines',
+    description: 'Tasks by status, workflows, personal to-dos',
+    filename: 'brAIn Tasks & Deadlines — GRT000937.txt',
+    color: 'orange',
+  },
+  people: {
+    label: 'People & Meetings',
+    description: 'Full personnel directory + all meetings with notes and action items',
+    filename: 'brAIn People & Meetings — GRT000937.txt',
+    color: 'blue',
+  },
+  knowledge: {
+    label: 'Knowledge Base',
+    description: 'Full KB document content, documents, templates',
+    filename: 'brAIn Knowledge Base — GRT000937.txt',
+    color: 'purple',
+  },
+};
+
+/**
+ * Build a focused snapshot for a specific domain.
+ * Each type is a subset of buildFullDataSnapshot.
+ */
+export const buildSnapshot = (data, type = 'full') => {
+  if (type === 'full') return buildFullDataSnapshot(data);
+
+  const {
+    grants = [], budgets = [], tasks = [], paymentRequests = [],
+    travelRequests = [], giftCardDistributions = [], knowledgeDocs = [],
+    personnel = [], meetings = [], todos = [], documents = [],
+    workflows = [], templates = [],
+  } = data;
+
+  const now = new Date();
+  const nowStr = new Date().toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+  });
+  const info = SNAPSHOT_TYPES[type];
+  const hr = (label) => `\n${'='.repeat(72)}\n${label}\n${'='.repeat(72)}\n`;
+  const sub = (label) => `\n${'─'.repeat(48)}\n${label}\n${'─'.repeat(48)}\n`;
+  const fmt = (val) => val == null || val === '' ? '—' : String(val);
+  const fmtMoney = (val) => `$${(Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtAttendees = (val) => {
+    if (!val) return null;
+    if (Array.isArray(val)) return val.length ? val.join(', ') : null;
+    return String(val) || null;
+  };
+
+  let out = `brAIn ${info.label.toUpperCase()} SNAPSHOT
+================================================================================
+LAST UPDATED: ${nowStr}
+================================================================================
+Program: RWJF Grant GRT000937
+PI: Dr. Marjorie Gondré-Lewis | Program Director: Héctor Bravo-Rivera
+================================================================================
+
+`;
+
+  if (type === 'financial') {
+    // Budgets with all expenses
+    out += hr(`BUDGETS (${budgets.length})`);
+    budgets.forEach((b, i) => {
+      const grantTitle = grants.find(g => g.id === b.grantId)?.title || 'Unknown Grant';
+      const totalSpent = (b.categories || []).reduce((s, cat) =>
+        s + (cat.miniPools || []).reduce((ps, p) =>
+          ps + (p.expenses || []).reduce((es, e) => es + (Number(e.amount) || 0), 0), 0), 0);
+      out += sub(`Budget ${i + 1}: ${grantTitle}`);
+      out += `Total Budget: ${fmtMoney(b.totalBudget)} | Spent: ${fmtMoney(totalSpent)} | Remaining: ${fmtMoney((b.totalBudget || 0) - totalSpent)}\n\n`;
+      (b.categories || []).forEach(cat => {
+        const catSpent = (cat.miniPools || []).reduce((s, p) =>
+          s + (p.expenses || []).reduce((es, e) => es + (Number(e.amount) || 0), 0), 0);
+        out += `  CATEGORY: ${fmt(cat.name)} | Allocated: ${fmtMoney(cat.allocated)} | Spent: ${fmtMoney(catSpent)}\n`;
+        (cat.miniPools || []).forEach(pool => {
+          const poolSpent = (pool.expenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+          out += `    POOL: ${fmt(pool.description)} | Allocated: ${fmtMoney(pool.allocated)} | Spent: ${fmtMoney(poolSpent)}\n`;
+          (pool.expenses || []).forEach(e => {
+            out += `      EXPENSE: ${fmt(e.date)} | ${fmt(e.vendor)} | ${fmt(e.description)} | ${fmtMoney(e.amount)}${e.notes ? ' | ' + e.notes : ''}\n`;
+          });
+        });
+        out += '\n';
+      });
+    });
+
+    // Payment requests
+    out += hr(`PAYMENT REQUESTS (${paymentRequests.length})`);
+    if (paymentRequests.length === 0) { out += 'None.\n'; } else {
+      paymentRequests.forEach((pr, i) => {
+        out += `[${i+1}] ${fmt(pr.vendor)} | ${fmtMoney(pr.amount)} | ${fmt(pr.status)} | ${fmt(pr.date)}\n`;
+        out += `    Description: ${fmt(pr.description)} | Type: ${fmt(pr.type)} | Worktag: ${fmt(pr.worktag)}\n`;
+        if (pr.notes) out += `    Notes: ${pr.notes}\n`;
+        out += '\n';
+      });
+    }
+
+    // Travel requests
+    out += hr(`TRAVEL REQUESTS (${travelRequests.length})`);
+    if (travelRequests.length === 0) { out += 'None.\n'; } else {
+      travelRequests.forEach((tr, i) => {
+        out += `[${i+1}] ${fmt(tr.traveler)} → ${fmt(tr.destination)} | Depart: ${fmt(tr.departureDate)} | Return: ${fmt(tr.returnDate)}\n`;
+        out += `    Est. Cost: ${fmtMoney(tr.estimatedCost)} | Status: ${fmt(tr.status)}\n`;
+        if (tr.notes) out += `    Notes: ${tr.notes}\n`;
+        out += '\n';
+      });
+    }
+
+    // Gift cards
+    out += hr(`GIFT CARD DISTRIBUTIONS (${giftCardDistributions.length})`);
+    if (giftCardDistributions.length === 0) { out += 'None.\n'; } else {
+      giftCardDistributions.forEach((g, i) => {
+        out += `[${i+1}] ${fmt(g.recipientName)} | ${fmtMoney(g.amount)} | ${fmt(g.distributionDate)} | ${fmt(g.status)}\n`;
+        if (g.purpose) out += `    Purpose: ${g.purpose}\n`;
+        out += '\n';
+      });
+    }
+  }
+
+  if (type === 'tasks') {
+    const taskGroups = {};
+    tasks.forEach(t => { const s = t.status || 'Other'; if (!taskGroups[s]) taskGroups[s] = []; taskGroups[s].push(t); });
+    out += hr(`TASKS (${tasks.length} total)`);
+    Object.entries(taskGroups).forEach(([status, arr]) => {
+      out += sub(`${status} (${arr.length})`);
+      arr.sort((a, b) => (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1).forEach(t => {
+        const overdue = t.dueDate && new Date(t.dueDate) < now && t.status !== 'Done' ? ' [OVERDUE]' : '';
+        out += `• ${fmt(t.title)}${overdue}\n`;
+        out += `  Priority: ${fmt(t.priority)} | Due: ${fmt(t.dueDate)} | Assignee: ${fmt(t.assignee)}\n`;
+        if (t.description) out += `  Description: ${t.description}\n`;
+        out += '\n';
+      });
+    });
+
+    out += hr(`WORKFLOWS (${workflows.length})`);
+    if (workflows.length === 0) { out += 'None.\n'; } else {
+      workflows.forEach((w, i) => {
+        out += sub(`Workflow ${i+1}: ${fmt(w.title || w.name)}`);
+        out += `Status: ${fmt(w.status)}\n`;
+        if (w.steps?.length) w.steps.forEach((s, si) => out += `  ${si+1}. ${fmt(s.title || s.name || s)}\n`);
+        out += '\n';
+      });
+    }
+
+    const openTodos = todos.filter(t => !t.completed);
+    out += hr(`PERSONAL TO-DOS (${openTodos.length} open of ${todos.length})`);
+    if (openTodos.length === 0) { out += 'None open.\n'; } else {
+      openTodos.forEach(t => {
+        const overdue = t.dueDate && new Date(t.dueDate) < now ? ' [OVERDUE]' : '';
+        out += `• [${fmt(t.priority)}] ${fmt(t.text)}${overdue}${t.dueDate ? ' | Due: ' + t.dueDate : ''}\n`;
+      });
+    }
+  }
+
+  if (type === 'people') {
+    out += hr(`PERSONNEL (${personnel.length})`);
+    if (personnel.length === 0) { out += 'None.\n'; } else {
+      personnel.forEach((p, i) => {
+        out += `[${i+1}] ${fmt(p.name)} | ${fmt(p.role)} | ${fmt(p.title)}\n`;
+        out += `    Email: ${fmt(p.email)} | Phone: ${fmt(p.phone)}\n`;
+        if (p.department) out += `    Department: ${fmt(p.department)}\n`;
+        if (p.grantRole) out += `    Grant role: ${fmt(p.grantRole)}\n`;
+        if (p.notes) out += `    Notes: ${p.notes}\n`;
+        out += '\n';
+      });
+    }
+
+    const upcomingMtgs = meetings.filter(m => m.date && new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const pastMtgs = meetings.filter(m => !m.date || new Date(m.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (upcomingMtgs.length) {
+      out += hr(`UPCOMING MEETINGS (${upcomingMtgs.length})`);
+      upcomingMtgs.forEach(m => {
+        out += `• ${fmt(m.date)}${m.time ? ' ' + m.time : ''} — ${fmt(m.title)}\n`;
+        if (m.location) out += `  Location: ${fmt(m.location)}\n`;
+        const att = fmtAttendees(m.attendees); if (att) out += `  Attendees: ${att}\n`;
+        if (m.agenda) out += `  Agenda: ${m.agenda}\n`;
+        if (m.notes) out += `  Notes: ${m.notes}\n`;
+        if (m.actionItems?.length) out += `  Action Items:\n${m.actionItems.map(a => `    • ${a}`).join('\n')}\n`;
+        out += '\n';
+      });
+    }
+
+    if (pastMtgs.length) {
+      out += hr(`PAST MEETINGS (${pastMtgs.length})`);
+      pastMtgs.forEach(m => {
+        out += `• ${fmt(m.date)} — ${fmt(m.title)}\n`;
+        const att = fmtAttendees(m.attendees); if (att) out += `  Attendees: ${att}\n`;
+        if (m.notes) out += `  Notes: ${m.notes}\n`;
+        if (m.actionItems?.length) out += `  Action Items:\n${m.actionItems.map(a => `    • ${a}`).join('\n')}\n`;
+        out += '\n';
+      });
+    }
+
+    if (meetings.length === 0) out += hr('MEETINGS') + 'None.\n';
+  }
+
+  if (type === 'knowledge') {
+    out += hr(`KNOWLEDGE BASE (${knowledgeDocs.length} documents)`);
+    if (knowledgeDocs.length === 0) { out += 'None.\n'; } else {
+      knowledgeDocs.forEach((d, i) => {
+        out += sub(`KB Doc ${i+1}: ${fmt(d.title)}`);
+        out += `Category: ${fmt(d.category)} | Added: ${fmt(d.createdAt || d.date)}\n`;
+        if (d.tags?.length) out += `Tags: ${d.tags.join(', ')}\n`;
+        if (d.summary) out += `Summary: ${d.summary}\n`;
+        if (d.content) out += `\nFULL CONTENT:\n${d.content}\n`;
+        out += '\n';
+      });
+    }
+
+    out += hr(`DOCUMENTS (${documents.length})`);
+    if (documents.length === 0) { out += 'None.\n'; } else {
+      documents.forEach((d, i) => {
+        out += `[${i+1}] ${fmt(d.title || d.name)} | ${fmt(d.type)} | ${fmt(d.date || d.createdAt)}\n`;
+        if (d.content) out += `Content:\n${d.content}\n`;
+        out += '\n';
+      });
+    }
+
+    out += hr(`TEMPLATES (${templates.length})`);
+    if (templates.length === 0) { out += 'None.\n'; } else {
+      templates.forEach((t, i) => {
+        out += sub(`Template ${i+1}: ${fmt(t.title || t.name)}`);
+        out += `Category: ${fmt(t.category)}\n`;
+        if (t.content) out += `Content:\n${t.content}\n`;
+        out += '\n';
+      });
+    }
+  }
+
+  out += `\n${'='.repeat(72)}\nEND OF ${info.label.toUpperCase()} SNAPSHOT — ${nowStr}\n${'='.repeat(72)}\n`;
+  return out;
+};
+
 /**
  * Parse NotebookLM output and propose structured updates to the app.
- * Returns: { summary, newTasks, taskUpdates, grantUpdates, newKnowledgeDocs, generalInsights }
+ * Returns: { summary, newTasks, taskUpdates, grantUpdates, newKnowledgeDocs, generalInsights,
+ *            personnelUpdates, meetingUpdates, budgetCorrections, newTodos }
  */
 export const parseNotebookLMOutput = async (notebookText, currentData) => {
 
-  const { grants = [], tasks = [], knowledgeDocs = [] } = currentData;
+  const { grants = [], tasks = [], knowledgeDocs = [], personnel = [], meetings = [] } = currentData;
   const today = new Date().toISOString().split('T')[0];
 
   const grantsCtx = grants.length === 0 ? '(none)' : grants.map(g =>
@@ -1794,6 +2055,9 @@ export const parseNotebookLMOutput = async (notebookText, currentData) => {
   const kbCtx = knowledgeDocs.length === 0 ? '(none)' : knowledgeDocs.map(d =>
     `"${d.title}" [${d.category || 'doc'}]${d.summary ? ': ' + d.summary.slice(0, 100) : ''}`
   ).join('\n');
+
+  const personnelContext = personnel.map(p => `ID:${p.id} | ${p.name} | ${p.role} | ${p.email}`).join('\n') || 'none';
+  const meetingsContext = meetings.slice(0, 20).map(m => `ID:${m.id} | ${m.date} | ${m.title}`).join('\n') || 'none';
 
   const prompt = `You are an AI assistant for the RWJF Grant GRT000937 Program Manager Hub.
 Today: ${today}
@@ -1811,6 +2075,12 @@ ${tasksCtx}
 KNOWLEDGE BASE:
 ${kbCtx}
 
+PERSONNEL:
+${personnelContext}
+
+MEETINGS (recent 20):
+${meetingsContext}
+
 === NOTEBOOKLM OUTPUT ===
 ${notebookText.slice(0, 8000)}
 
@@ -1821,6 +2091,10 @@ Identify:
 3. Updates needed to EXISTING grants
 4. New knowledge docs worth saving (decisions, policy clarifications, meeting notes)
 5. General insights that don't fit other categories
+6. Corrections to EXISTING personnel records (role, title, email, phone, notes)
+7. Corrections to EXISTING meeting notes or action items
+8. Budget inconsistencies that need manual review (can't auto-apply, just flag)
+9. Action items that should become personal to-dos
 
 Return ONLY valid JSON (no markdown fences, no explanation):
 {
@@ -1837,13 +2111,27 @@ Return ONLY valid JSON (no markdown fences, no explanation):
   "newKnowledgeDocs": [
     { "title": "...", "category": "policy|sop|decision|meeting|reference|notes", "content": "...", "summary": "...", "tags": ["..."] }
   ],
-  "generalInsights": ["insight 1", "insight 2"]
+  "generalInsights": ["insight 1", "insight 2"],
+  "personnelUpdates": [
+    { "personId": "exact-id-from-data", "currentName": "...", "changes": { "role": "...", "title": "...", "email": "...", "phone": "...", "notes": "..." }, "reason": "..." }
+  ],
+  "meetingUpdates": [
+    { "meetingId": "exact-id-from-data", "currentTitle": "...", "changes": { "notes": "...", "actionItems": ["..."] }, "reason": "..." }
+  ],
+  "budgetCorrections": [
+    { "description": "...", "reason": "...", "suggestedAction": "..." }
+  ],
+  "newTodos": [
+    { "text": "...", "priority": "low|normal|high", "dueDate": "YYYY-MM-DD or null" }
+  ]
 }
 
 Rules:
 - Only use exact IDs from the data above — never invent IDs
 - If nothing found for a category, return empty array
-- Keep proposals minimal and accurate`;
+- Keep proposals minimal and accurate
+- personnelUpdates and meetingUpdates: only include fields that actually need to change
+- budgetCorrections are read-only flags — they cannot be auto-applied`;
 
   const response = await claudeFetch({
     model: 'claude-opus-4-6',

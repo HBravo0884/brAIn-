@@ -491,13 +491,14 @@ const getNblmDocs = () => {
  */
 export const uploadBriefingDoc = async (text, briefingType = 'full') => {
   const token = await getToken();
-  const label = {
-    full:      'Full Status',
-    tasks:     'Task Focus',
-    budget:    'Budget Focus',
-    executive: 'Executive',
-  }[briefingType] || briefingType;
-  const fileName = `brAIn ${label} Briefing — GRT000937.txt`;
+  const FILENAMES = {
+    full:      'brAIn Full Data Snapshot — GRT000937.txt',
+    financial: 'brAIn Financial Snapshot — GRT000937.txt',
+    tasks:     'brAIn Tasks & Deadlines — GRT000937.txt',
+    people:    'brAIn People & Meetings — GRT000937.txt',
+    knowledge: 'brAIn Knowledge Base — GRT000937.txt',
+  };
+  const fileName = FILENAMES[briefingType] || `brAIn ${briefingType} Snapshot — GRT000937.txt`;
 
   const docs = getNblmDocs();
   const existing = docs[briefingType];

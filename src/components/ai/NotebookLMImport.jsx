@@ -14,11 +14,16 @@ import {
   AlertTriangle,
   BookMarked,
   Award,
+  User,
+  CalendarDays,
+  DollarSign,
+  ListTodo,
 } from 'lucide-react';
 
 const PRIORITY_COLORS = {
   high: 'bg-red-100 text-red-700',
   medium: 'bg-yellow-100 text-yellow-700',
+  normal: 'bg-yellow-100 text-yellow-700',
   low: 'bg-green-100 text-green-700',
 };
 
@@ -47,8 +52,9 @@ const SectionHeader = ({ color, label, count }) => (
 
 const NotebookLMImport = ({ onClose }) => {
   const {
-    grants, tasks, knowledgeDocs,
+    grants, tasks, knowledgeDocs, personnel, meetings,
     addTask, updateTask, updateGrant, addKnowledgeDoc,
+    updatePerson, updateMeeting, addTodo,
   } = useApp();
 
   const [text, setText] = useState('');
@@ -72,7 +78,11 @@ const NotebookLMImport = ({ onClose }) => {
     (result.taskUpdates || []).length === 0 &&
     (result.grantUpdates || []).length === 0 &&
     (result.newKnowledgeDocs || []).length === 0 &&
-    (result.generalInsights || []).length === 0
+    (result.generalInsights || []).length === 0 &&
+    (result.personnelUpdates || []).length === 0 &&
+    (result.meetingUpdates || []).length === 0 &&
+    (result.newTodos || []).length === 0 &&
+    (result.budgetCorrections || []).length === 0
   );
 
   const handleAnalyze = async () => {
@@ -82,13 +92,16 @@ const NotebookLMImport = ({ onClose }) => {
     setResult(null);
     setApplied(false);
     try {
-      const parsed = await parseNotebookLMOutput(text, { grants, tasks, knowledgeDocs });
+      const parsed = await parseNotebookLMOutput(text, { grants, tasks, knowledgeDocs, personnel, meetings });
       setResult(parsed);
       const keys = new Set();
       (parsed.newTasks || []).forEach((_, i) => keys.add(`newTask-${i}`));
       (parsed.taskUpdates || []).forEach((_, i) => keys.add(`taskUpdate-${i}`));
       (parsed.grantUpdates || []).forEach((_, i) => keys.add(`grantUpdate-${i}`));
       (parsed.newKnowledgeDocs || []).forEach((_, i) => keys.add(`newDoc-${i}`));
+      (parsed.personnelUpdates || []).forEach((_, i) => keys.add(`personUpdate-${i}`));
+      (parsed.meetingUpdates || []).forEach((_, i) => keys.add(`meetingUpdate-${i}`));
+      (parsed.newTodos || []).forEach((_, i) => keys.add(`newTodo-${i}`));
       setSelected(keys);
     } catch (err) {
       setError(err.message || 'Analysis failed. Please try again.');
@@ -138,6 +151,28 @@ const NotebookLMImport = ({ onClose }) => {
         summary: d.summary || '',
         tags: d.tags || ['notebooklm'],
       });
+    });
+
+    // Personnel updates
+    (result.personnelUpdates || []).forEach((u, i) => {
+      if (!selected.has(`personUpdate-${i}`)) return;
+      const person = personnel.find(p => p.id === u.personId);
+      if (!person) return;
+      updatePerson(u.personId, u.changes);
+    });
+
+    // Meeting updates
+    (result.meetingUpdates || []).forEach((u, i) => {
+      if (!selected.has(`meetingUpdate-${i}`)) return;
+      const meeting = meetings.find(m => m.id === u.meetingId);
+      if (!meeting) return;
+      updateMeeting(u.meetingId, u.changes);
+    });
+
+    // New todos
+    (result.newTodos || []).forEach((t, i) => {
+      if (!selected.has(`newTodo-${i}`)) return;
+      addTodo({ text: t.text, priority: t.priority || 'normal', dueDate: t.dueDate || '', completed: false });
     });
 
     setIsApplying(false);
@@ -328,6 +363,123 @@ const NotebookLMImport = ({ onClose }) => {
             </div>
           )}
 
+          {/* Personnel Updates */}
+          {result && (result.personnelUpdates || []).length > 0 && (
+            <div className="space-y-2">
+              <SectionHeader color="bg-pink-100 text-pink-700" label="Personnel Updates" count={result.personnelUpdates.length} />
+              <div className="space-y-2">
+                {result.personnelUpdates.map((u, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-pink-50 border border-pink-100 rounded-xl">
+                    <Toggle checked={selected.has(`personUpdate-${i}`)} onChange={() => toggle(`personUpdate-${i}`)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-pink-500" />
+                        <p className="text-sm font-semibold text-gray-800">{u.currentName}</p>
+                      </div>
+                      <p className="text-xs text-pink-600 mt-0.5">{u.reason}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {Object.entries(u.changes || {}).map(([k, v]) => v && (
+                          <span key={k} className="px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-xs">
+                            {k}: {String(v).slice(0, 60)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Meeting Updates */}
+          {result && (result.meetingUpdates || []).length > 0 && (
+            <div className="space-y-2">
+              <SectionHeader color="bg-teal-100 text-teal-700" label="Meeting Updates" count={result.meetingUpdates.length} />
+              <div className="space-y-2">
+                {result.meetingUpdates.map((u, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-teal-50 border border-teal-100 rounded-xl">
+                    <Toggle checked={selected.has(`meetingUpdate-${i}`)} onChange={() => toggle(`meetingUpdate-${i}`)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays size={14} className="text-teal-500" />
+                        <p className="text-sm font-semibold text-gray-800">{u.currentTitle}</p>
+                      </div>
+                      <p className="text-xs text-teal-600 mt-0.5">{u.reason}</p>
+                      {u.changes?.notes && (
+                        <p className="text-xs text-gray-500 mt-1 bg-teal-50 border border-teal-100 rounded p-1.5">
+                          Notes: {String(u.changes.notes).slice(0, 150)}{u.changes.notes.length > 150 ? '…' : ''}
+                        </p>
+                      )}
+                      {u.changes?.actionItems?.length > 0 && (
+                        <div className="mt-1.5">
+                          <p className="text-xs font-medium text-teal-700 mb-0.5">Action items ({u.changes.actionItems.length}):</p>
+                          {u.changes.actionItems.slice(0, 3).map((a, ai) => (
+                            <p key={ai} className="text-xs text-gray-500">• {String(a).slice(0, 80)}</p>
+                          ))}
+                          {u.changes.actionItems.length > 3 && (
+                            <p className="text-xs text-gray-400">+{u.changes.actionItems.length - 3} more…</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* New To-Dos */}
+          {result && (result.newTodos || []).length > 0 && (
+            <div className="space-y-2">
+              <SectionHeader color="bg-emerald-100 text-emerald-700" label="New To-Dos" count={result.newTodos.length} />
+              <div className="space-y-2">
+                {result.newTodos.map((t, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                    <Toggle checked={selected.has(`newTodo-${i}`)} onChange={() => toggle(`newTodo-${i}`)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <ListTodo size={14} className="text-emerald-500" />
+                        <p className="text-sm font-semibold text-gray-800">{t.text}</p>
+                        {t.priority && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.normal}`}>
+                            {t.priority}
+                          </span>
+                        )}
+                        {t.dueDate && (
+                          <span className="text-xs text-gray-500">Due {t.dueDate}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Budget Corrections — read-only, no checkbox */}
+          {result && (result.budgetCorrections || []).length > 0 && (
+            <div className="space-y-2">
+              <SectionHeader color="bg-orange-100 text-orange-700" label="Budget Flags (manual fix needed)" count={result.budgetCorrections.length} />
+              <div className="space-y-2">
+                {result.budgetCorrections.map((bc, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                    <AlertTriangle size={16} className="text-orange-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{bc.description}</p>
+                      <p className="text-xs text-orange-600 mt-0.5">{bc.reason}</p>
+                      {bc.suggestedAction && (
+                        <p className="text-xs text-gray-500 mt-1 italic">Suggested: {bc.suggestedAction}</p>
+                      )}
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">
+                        Manual fix required — cannot auto-apply
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* General Insights */}
           {result && (result.generalInsights || []).length > 0 && (
             <div className="space-y-2">
@@ -367,7 +519,7 @@ const NotebookLMImport = ({ onClose }) => {
                 <CheckCircle2 size={20} />
                 <p className="font-semibold">Changes applied successfully!</p>
               </div>
-              <p className="text-xs text-emerald-600">Your grants, tasks, and knowledge base have been updated.</p>
+              <p className="text-xs text-emerald-600">Your grants, tasks, personnel, meetings, to-dos, and knowledge base have been updated.</p>
               <button
                 onClick={onClose}
                 className="px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors"

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { generateStatusBriefing, buildFullDataSnapshot } from '../../utils/ai';
+import { generateStatusBriefing, buildSnapshot, SNAPSHOT_TYPES } from '../../utils/ai';
 import { uploadBriefingDoc, getNblmBriefingLinks } from '../../utils/googleDrive';
 import {
   X,
   FileText,
   CheckSquare,
   DollarSign,
+  Users,
+  BookOpen,
   Zap,
   Sparkles,
   Copy,
@@ -19,6 +21,7 @@ import {
   HardDrive,
   ExternalLink,
   RefreshCw,
+  Save,
 } from 'lucide-react';
 
 const BRIEFING_TYPES = [
@@ -87,6 +90,64 @@ const NB_LM_PROMPTS = [
   },
 ];
 
+// Icon map for snapshot types
+const SNAPSHOT_ICONS = {
+  full: FileText,
+  financial: DollarSign,
+  tasks: CheckSquare,
+  people: Users,
+  knowledge: BookOpen,
+};
+
+// Tailwind color classes for each snapshot type
+const SNAPSHOT_COLORS = {
+  full: {
+    border: 'border-indigo-200',
+    bg: 'bg-indigo-50',
+    badge: 'bg-indigo-100 text-indigo-700',
+    btn: 'bg-indigo-600 hover:bg-indigo-700',
+    icon: 'text-indigo-600',
+    link: 'text-indigo-700',
+    title: 'text-indigo-900',
+  },
+  financial: {
+    border: 'border-green-200',
+    bg: 'bg-green-50',
+    badge: 'bg-green-100 text-green-700',
+    btn: 'bg-green-600 hover:bg-green-700',
+    icon: 'text-green-600',
+    link: 'text-green-700',
+    title: 'text-green-900',
+  },
+  tasks: {
+    border: 'border-orange-200',
+    bg: 'bg-orange-50',
+    badge: 'bg-orange-100 text-orange-700',
+    btn: 'bg-orange-600 hover:bg-orange-700',
+    icon: 'text-orange-600',
+    link: 'text-orange-700',
+    title: 'text-orange-900',
+  },
+  people: {
+    border: 'border-blue-200',
+    bg: 'bg-blue-50',
+    badge: 'bg-blue-100 text-blue-700',
+    btn: 'bg-blue-600 hover:bg-blue-700',
+    icon: 'text-blue-600',
+    link: 'text-blue-700',
+    title: 'text-blue-900',
+  },
+  knowledge: {
+    border: 'border-purple-200',
+    bg: 'bg-purple-50',
+    badge: 'bg-purple-100 text-purple-700',
+    btn: 'bg-purple-600 hover:bg-purple-700',
+    icon: 'text-purple-600',
+    link: 'text-purple-700',
+    title: 'text-purple-900',
+  },
+};
+
 const BriefingGenerator = ({ onClose }) => {
   const {
     grants,
@@ -113,21 +174,31 @@ const BriefingGenerator = ({ onClose }) => {
   const [copied, setCopied] = useState(false);
   const [showNbLM, setShowNbLM] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(null);
-  const [isSavingToDrive, setIsSavingToDrive] = useState(false);
+
+  // Per-snapshot-type saving state
+  const [savingType, setSavingType] = useState(null); // which type key is saving
+  const [savedType, setSavedType] = useState(null);   // which type just finished saving
   const [driveLinks, setDriveLinks] = useState(() => getNblmBriefingLinks());
-  const [savedToDrive, setSavedToDrive] = useState(false);
   const [driveError, setDriveError] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(null); // which type link was just copied
+  const [isSavingAll, setIsSavingAll] = useState(false);
+  const [saveAllDone, setSaveAllDone] = useState(false);
 
   // Reload cached links whenever modal opens
   useEffect(() => {
     setDriveLinks(getNblmBriefingLinks());
   }, []);
 
+  const allData = {
+    grants, budgets, tasks, paymentRequests, travelRequests,
+    giftCardDistributions, knowledgeDocs, personnel, meetings, todos,
+    documents, workflows, templates, replyQueue,
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
     setBriefing('');
-    setSavedToDrive(false);
     try {
       const result = await generateStatusBriefing(
         { grants, budgets, tasks, paymentRequests, travelRequests, giftCardDistributions, knowledgeDocs, personnel, meetings, todos },
@@ -142,30 +213,44 @@ const BriefingGenerator = ({ onClose }) => {
     }
   };
 
-  const allData = {
-    grants, budgets, tasks, paymentRequests, travelRequests,
-    giftCardDistributions, knowledgeDocs, personnel, meetings, todos,
-    documents, workflows, templates, replyQueue,
-  };
-
-  const handleSaveToDrive = async () => {
-    setIsSavingToDrive(true);
+  const handleSaveToDrive = async (typeKey) => {
+    setSavingType(typeKey);
     setDriveError(null);
-    setSavedToDrive(false);
+    setSavedType(null);
     try {
-      // Always save the FULL raw snapshot (not the AI briefing)
-      // so NotebookLM has every field of every record, untruncated.
-      const snapshot = buildFullDataSnapshot(allData);
-      await uploadBriefingDoc(snapshot, 'full'); // single persistent doc
+      const snapshot = buildSnapshot(allData, typeKey);
+      await uploadBriefingDoc(snapshot, typeKey);
       const updated = getNblmBriefingLinks();
       setDriveLinks(updated);
-      setSavedToDrive(true);
-      setTimeout(() => setSavedToDrive(false), 4000);
+      setSavedType(typeKey);
+      setTimeout(() => setSavedType(null), 4000);
     } catch (err) {
       setDriveError(err.message || 'Drive upload failed.');
     } finally {
-      setIsSavingToDrive(false);
+      setSavingType(null);
     }
+  };
+
+  const handleSaveAll = async () => {
+    setIsSavingAll(true);
+    setSaveAllDone(false);
+    setDriveError(null);
+    const types = Object.keys(SNAPSHOT_TYPES);
+    for (const typeKey of types) {
+      setSavingType(typeKey);
+      try {
+        const snapshot = buildSnapshot(allData, typeKey);
+        await uploadBriefingDoc(snapshot, typeKey);
+      } catch (err) {
+        setDriveError(`Failed saving ${SNAPSHOT_TYPES[typeKey].label}: ${err.message}`);
+      }
+    }
+    const updated = getNblmBriefingLinks();
+    setDriveLinks(updated);
+    setSavingType(null);
+    setIsSavingAll(false);
+    setSaveAllDone(true);
+    setTimeout(() => setSaveAllDone(false), 5000);
   };
 
   const handleCopy = async () => {
@@ -195,6 +280,12 @@ const BriefingGenerator = ({ onClose }) => {
     setTimeout(() => setCopiedPrompt(null), 2000);
   };
 
+  const handleCopyLink = async (typeKey, url) => {
+    await navigator.clipboard.writeText(url);
+    setCopiedLink(typeKey);
+    setTimeout(() => setCopiedLink(null), 2000);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-10 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -215,9 +306,108 @@ const BriefingGenerator = ({ onClose }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Type selector */}
+
+          {/* ── 5 Snapshot Type Cards ─────────────────────────────────────── */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-3">Select briefing type</p>
+            <p className="text-sm font-semibold text-gray-700 mb-3">NotebookLM Data Sources — Save to Google Drive</p>
+            <div className="overflow-x-auto pb-1">
+              <div className="flex gap-3 min-w-max">
+                {Object.entries(SNAPSHOT_TYPES).map(([typeKey, info]) => {
+                  const Icon = SNAPSHOT_ICONS[typeKey] || FileText;
+                  const colors = SNAPSHOT_COLORS[typeKey];
+                  const link = driveLinks[typeKey];
+                  const isSaving = savingType === typeKey;
+                  const justSaved = savedType === typeKey;
+                  return (
+                    <div
+                      key={typeKey}
+                      className={`flex flex-col gap-2 p-3 rounded-xl border-2 ${colors.border} ${colors.bg} w-44 flex-shrink-0`}
+                    >
+                      {/* Card header */}
+                      <div className="flex items-center gap-2">
+                        <Icon size={15} className={colors.icon} />
+                        <p className={`text-xs font-bold ${colors.title} leading-tight`}>{info.label}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-snug" style={{ minHeight: '2.5rem' }}>{info.description}</p>
+
+                      {/* Drive link status */}
+                      {link ? (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <a
+                            href={link.webViewLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center gap-0.5 text-xs font-semibold ${colors.link} hover:underline`}
+                          >
+                            Open ↗
+                          </a>
+                          <button
+                            onClick={() => handleCopyLink(typeKey, link.webViewLink)}
+                            className="p-0.5 hover:bg-white/60 rounded"
+                            title="Copy Drive URL"
+                          >
+                            {copiedLink === typeKey
+                              ? <CheckCheck size={11} className="text-green-600" />
+                              : <Copy size={11} className={colors.icon} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">Not saved yet</p>
+                      )}
+
+                      {/* Save button */}
+                      <button
+                        onClick={() => handleSaveToDrive(typeKey)}
+                        disabled={isSaving || isSavingAll}
+                        className={`flex items-center justify-center gap-1 py-1.5 px-2 ${colors.btn} disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition-all`}
+                      >
+                        {isSaving ? (
+                          <><Loader2 size={11} className="animate-spin" /> Saving…</>
+                        ) : justSaved ? (
+                          <><CheckCheck size={11} /> Saved!</>
+                        ) : (
+                          <><HardDrive size={11} /> {link ? 'Update' : 'Save'}</>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Save All button */}
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={handleSaveAll}
+                disabled={isSavingAll || !!savingType}
+                className="flex items-center gap-2 py-2 px-4 bg-gray-800 hover:bg-gray-900 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-all shadow"
+              >
+                {isSavingAll ? (
+                  <><Loader2 size={14} className="animate-spin" /> Saving all 5…</>
+                ) : saveAllDone ? (
+                  <><CheckCheck size={14} /> All 5 saved!</>
+                ) : (
+                  <><Save size={14} /> Save All 5 to Drive</>
+                )}
+              </button>
+              {savingType && isSavingAll && (
+                <span className="text-xs text-gray-500">
+                  Saving: {SNAPSHOT_TYPES[savingType]?.label}…
+                </span>
+              )}
+            </div>
+
+            {/* Drive error */}
+            {driveError && (
+              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                {driveError}
+              </div>
+            )}
+          </div>
+
+          {/* ── Type selector (for AI briefing generation) ─────────────── */}
+          <div>
+            <p className="text-sm font-semibold text-gray-700 mb-3">Generate AI briefing</p>
             <div className="grid grid-cols-2 gap-3">
               {BRIEFING_TYPES.map(type => {
                 const Icon = type.icon;
@@ -289,7 +479,7 @@ const BriefingGenerator = ({ onClose }) => {
             ))}
           </div>
 
-          {/* Action buttons row */}
+          {/* Generate button row */}
           <div className="flex gap-3">
             <button
               onClick={handleGenerate}
@@ -303,26 +493,7 @@ const BriefingGenerator = ({ onClose }) => {
                 <><Sparkles size={18} />Generate{briefing ? ' New' : ''} Briefing</>
               )}
             </button>
-            <button
-              onClick={handleSaveToDrive}
-              disabled={isSavingToDrive}
-              title="Push ALL app data to a persistent Google Drive file — add that URL to NotebookLM once and it always stays current"
-              className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-md whitespace-nowrap"
-            >
-              {isSavingToDrive ? (
-                <><Loader2 size={18} className="animate-spin" />Saving…</>
-              ) : savedToDrive ? (
-                <><CheckCheck size={18} />Saved!</>
-              ) : (
-                <><HardDrive size={18} />Save to Drive</>
-              )}
-            </button>
           </div>
-          {!driveLinks['full'] && (
-            <p className="text-xs text-gray-500 text-center -mt-3">
-              "Save to Drive" pushes <strong>all</strong> app data (every record, every field) to a single Google Drive file. Add that file URL to NotebookLM once — click Save any time data changes.
-            </p>
-          )}
 
           {/* Error */}
           {error && (
@@ -353,29 +524,8 @@ const BriefingGenerator = ({ onClose }) => {
                     <Download size={14} />
                     .txt
                   </button>
-                  <button
-                    onClick={handleSaveToDrive}
-                    disabled={isSavingToDrive}
-                    title="Save/update this briefing as a persistent Google Drive file — add that URL to NotebookLM once and it will always be current"
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg text-xs font-medium text-white transition-colors"
-                  >
-                    {isSavingToDrive ? (
-                      <><Loader2 size={14} className="animate-spin" /> Saving…</>
-                    ) : savedToDrive ? (
-                      <><CheckCheck size={14} /> Saved!</>
-                    ) : (
-                      <><HardDrive size={14} /> Save to Drive</>
-                    )}
-                  </button>
                 </div>
               </div>
-
-              {/* Drive error */}
-              {driveError && (
-                <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                  Drive error: {driveError}
-                </div>
-              )}
 
               {/* Persistent NbLM link — always the 'full' snapshot */}
               {driveLinks['full'] && (
@@ -391,15 +541,11 @@ const BriefingGenerator = ({ onClose }) => {
                     Open in Drive <ExternalLink size={11} />
                   </a>
                   <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(driveLinks['full'].webViewLink);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }}
+                    onClick={() => handleCopyLink('full', driveLinks['full'].webViewLink)}
                     className="ml-auto flex-shrink-0 p-1 hover:bg-green-100 rounded"
                     title="Copy Drive URL"
                   >
-                    {copied ? <CheckCheck size={12} className="text-green-600" /> : <Copy size={12} className="text-green-600" />}
+                    {copiedLink === 'full' ? <CheckCheck size={12} className="text-green-600" /> : <Copy size={12} className="text-green-600" />}
                   </button>
                 </div>
               )}
@@ -409,32 +555,6 @@ const BriefingGenerator = ({ onClose }) => {
                   {briefing}
                 </pre>
               </div>
-            </div>
-          )}
-
-          {/* Show persistent NbLM link when no briefing generated yet */}
-          {!briefing && driveLinks['full'] && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
-              <HardDrive size={14} className="text-green-600 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-green-800">Full data snapshot saved to Drive</p>
-                <p className="text-xs text-green-700">Add this URL to NotebookLM once — then just click "Save to Drive" whenever data changes.</p>
-              </div>
-              <a
-                href={driveLinks['full'].webViewLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-shrink-0 flex items-center gap-1 text-xs text-blue-600 hover:underline"
-              >
-                Open <ExternalLink size={11} />
-              </a>
-              <button
-                onClick={async () => { await navigator.clipboard.writeText(driveLinks['full'].webViewLink); }}
-                className="flex-shrink-0 p-1 hover:bg-green-100 rounded"
-                title="Copy Drive URL"
-              >
-                <Copy size={12} className="text-green-600" />
-              </button>
             </div>
           )}
 
@@ -488,9 +608,9 @@ const BriefingGenerator = ({ onClose }) => {
 
           {/* Workflow tip */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 leading-relaxed">
-            <strong>Setup (once):</strong> Click "Save to Drive" → copy the Drive URL → add it as a source in NotebookLM.<br />
-            <strong>Ongoing:</strong> Click "Save to Drive" whenever data changes — NotebookLM sees the latest version automatically.<br />
-            <strong>The Drive file contains:</strong> every grant, budget (all expenses), task, payment request, travel request, meeting (full notes + action items), personnel, knowledge base (full content), documents, workflows, templates, and reply queue.
+            <strong>Setup (once):</strong> Click "Save" on any snapshot type → copy its Drive URL → add it as a source in NotebookLM.<br />
+            <strong>Ongoing:</strong> Click "Update" or "Save All 5" whenever data changes — NotebookLM sees the latest version automatically.<br />
+            <strong>Each snapshot contains:</strong> Full = everything | Financial = budgets + payments + travel + gift cards | Tasks = kanban + workflows + todos | People = personnel + all meetings | Knowledge = KB docs + documents + templates.
           </div>
         </div>
       </div>
