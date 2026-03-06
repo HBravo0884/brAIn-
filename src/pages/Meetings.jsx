@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search, CheckSquare } from 'lucide-react';
+import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search, CheckSquare, Mic, Loader2 } from 'lucide-react';
+import { extractMeetingFromTranscript } from '../utils/ai';
 
 const Meetings = () => {
   const { meetings, grants, addMeeting, updateMeeting, deleteMeeting, addTask } = useApp();
@@ -8,6 +9,10 @@ const Meetings = () => {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [viewMode, setViewMode] = useState(false);
   const [actionItemPrompt, setActionItemPrompt] = useState(null); // { lines: string[], grantId: string }
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [transcriptText, setTranscriptText] = useState('');
+  const [parsingTranscript, setParsingTranscript] = useState(false);
+  const [parseError, setParseError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -155,6 +160,39 @@ ${meeting.actionItems || 'None'}
     return attendees.split(',').filter(a => a.trim()).length;
   };
 
+  const handleParseTranscript = async () => {
+    if (!transcriptText.trim()) return;
+    setParsingTranscript(true);
+    setParseError('');
+    try {
+      const extracted = await extractMeetingFromTranscript(transcriptText);
+      // Pre-fill the meeting form with extracted data
+      setFormData({
+        title: extracted.title || '',
+        date: extracted.date || '',
+        grantId: '',
+        attendees: Array.isArray(extracted.attendees)
+          ? extracted.attendees.join(', ')
+          : (extracted.attendees || ''),
+        agenda: extracted.agenda || '',
+        notes: extracted.notes || '',
+        transcription: transcriptText,
+        actionItems: Array.isArray(extracted.actionItems)
+          ? extracted.actionItems.join('\n')
+          : (extracted.actionItems || ''),
+      });
+      setSelectedMeeting(null);
+      setViewMode(false);
+      setShowTranscriptModal(false);
+      setTranscriptText('');
+      setShowModal(true);
+    } catch (err) {
+      setParseError(err.message || 'Failed to parse transcript. Check your API key in Settings.');
+    } finally {
+      setParsingTranscript(false);
+    }
+  };
+
   // Transcript / notes search across all meetings
   const searchResults = useMemo(() => {
     const q = transcriptSearch.trim().toLowerCase();
@@ -201,13 +239,23 @@ ${meeting.actionItems || 'None'}
           <h1 className="text-3xl font-bold text-gray-900">Meetings</h1>
           <p className="text-gray-600 mt-1">Manage meetings with transcription support for NotebookLM analysis</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          <Plus size={20} />
-          New Meeting
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setTranscriptText(''); setParseError(''); setShowTranscriptModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
+            title="Paste a transcript and let AI extract meeting details automatically"
+          >
+            <Mic size={18} />
+            Import Transcript
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus size={20} />
+            New Meeting
+          </button>
+        </div>
       </div>
 
       {/* Transcript / notes search */}
@@ -551,6 +599,93 @@ ${meeting.actionItems || 'None'}
                   </div>
                 </form>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transcript Import Modal */}
+      {showTranscriptModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-100 rounded-lg">
+                  <Mic size={18} className="text-rose-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Import from Transcript</h2>
+                  <p className="text-xs text-gray-500">AI will extract meeting details automatically</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTranscriptModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <textarea
+                value={transcriptText}
+                onChange={e => setTranscriptText(e.target.value)}
+                className="w-full px-3 py-3 border border-gray-300 rounded-xl font-mono text-sm focus:ring-2 focus:ring-rose-400 outline-none resize-none"
+                rows={14}
+                placeholder="Paste your meeting transcript here...
+
+Example:
+Meeting: RWJF Grant Review
+Date: March 5, 2026, 2:00 PM
+
+Attendees: Dr. Gondré-Lewis, Héctor Bravo-Rivera, Sam Gaisie
+
+[00:00] Dr. Gondré-Lewis: Let's review the Q2 budget status...
+[00:45] Héctor: The P-Card reconciliation is due by the 15th...
+
+Action Items:
+- Héctor: Submit PRF for catering by March 10
+- Sam: Pull travel receipts for CBT reimbursement"
+                autoFocus
+              />
+
+              {parseError && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  <X size={14} className="shrink-0 mt-0.5" />
+                  {parseError}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleParseTranscript}
+                  disabled={parsingTranscript || !transcriptText.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {parsingTranscript ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Parsing transcript...
+                    </>
+                  ) : (
+                    <>
+                      <Mic size={18} />
+                      Parse & Pre-fill Form
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowTranscriptModal(false)}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-400 text-center">
+                Uses Claude Haiku — fast and inexpensive. Extracts title, date, attendees, agenda, notes, and action items.
+                You can review and edit everything before saving.
+              </p>
             </div>
           </div>
         </div>
