@@ -157,8 +157,21 @@ export const AppProvider = ({ children }) => {
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setPaymentRequests(paymentRequests), 300); return () => clearTimeout(t); }, [paymentRequests, loading]);
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTravelRequests(travelRequests), 300); return () => clearTimeout(t); }, [travelRequests, loading]);
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setGiftCardDistributions(giftCardDistributions), 300); return () => clearTimeout(t); }, [giftCardDistributions, loading]);
-  useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setMeetings(meetings), 300); return () => clearTimeout(t); }, [meetings, loading]);
+  // Meetings: strip transcription to 500 chars for localStorage — full text lives in Supabase + Drive
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => {
+      const lean = meetings.map(m =>
+        m.transcription?.length > 500
+          ? { ...m, transcription: m.transcription.slice(0, 500) + '\n\n[Full transcript in Supabase/Drive]', _transcriptTrimmed: true }
+          : m
+      );
+      storage.setMeetings(lean);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [meetings, loading]);
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTodos(todos), 300); return () => clearTimeout(t); }, [todos, loading]);
+  // KB docs: already capped at 20KB each in addKnowledgeDoc
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setKnowledgeDocs(knowledgeDocs), 300); return () => clearTimeout(t); }, [knowledgeDocs, loading]);
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setPersonnel(personnel), 300); return () => clearTimeout(t); }, [personnel, loading]);
   useEffect(() => { if (loading) return; const t = setTimeout(() => storage.setTaskTypes(taskTypes), 300); return () => clearTimeout(t); }, [taskTypes, loading]);
@@ -397,25 +410,14 @@ export const AppProvider = ({ children }) => {
     setGiftCardDistributions(prev => prev.filter(gcd => gcd.id !== id));
   };
 
-  // Cap transcription at 30 KB — full text lives in Drive, not localStorage
-  const TRANSCRIPT_MAX = 30_000;
-  const capTranscript = (obj) => {
-    if (obj.transcription && obj.transcription.length > TRANSCRIPT_MAX) {
-      return { ...obj, transcription: obj.transcription.slice(0, TRANSCRIPT_MAX) + '\n\n[Full transcript stored in Google Drive]' };
-    }
-    return obj;
-  };
-
-  // Meeting operations
+  // Meeting operations — full transcription kept in state (→ Supabase); localStorage write strips it automatically
   const addMeeting = (meeting) => {
     if (!validateSafe(MeetingSchema, meeting, 'meeting')) return;
-    const safe = capTranscript(meeting);
-    setMeetings(prev => [...prev, { ...safe, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
+    setMeetings(prev => [...prev, { ...meeting, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
 
   const updateMeeting = (id, updates) => {
-    const safe = capTranscript(updates);
-    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...safe, updatedAt: new Date().toISOString() } : m));
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...updates, updatedAt: new Date().toISOString() } : m));
   };
 
   const deleteMeeting = (id) => {
