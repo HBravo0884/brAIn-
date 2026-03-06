@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search, CheckSquare, Mic, Loader2 } from 'lucide-react';
 import { extractMeetingFromTranscript } from '../utils/ai';
+import { isDriveConfigured, uploadTranscriptToDrive } from '../utils/googleDrive';
 
 const Meetings = () => {
   const { meetings, grants, knowledgeDocs, addMeeting, updateMeeting, deleteMeeting, addTask, addKnowledgeDoc, updateKnowledgeDoc } = useApp();
@@ -14,6 +15,9 @@ const Meetings = () => {
   const [parsingTranscript, setParsingTranscript] = useState(false);
   const [parseError, setParseError] = useState('');
   const [profileUpdates, setProfileUpdates] = useState([]); // names updated/created in KB
+  const [driveUploadStatus, setDriveUploadStatus] = useState(null); // null | 'uploading' | { webViewLink } | 'error'
+  // Pending transcript info for Drive upload (set during parse, consumed on submit)
+  const [pendingDriveUpload, setPendingDriveUpload] = useState(null); // { text, grantId }
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -62,7 +66,7 @@ const Meetings = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setTimeout(() => { resetForm(); setProfileUpdates([]); }, 300);
+    setTimeout(() => { resetForm(); setProfileUpdates([]); setPendingDriveUpload(null); }, 300);
   };
 
   const handleSubmit = (e) => {
@@ -90,6 +94,16 @@ const Meetings = () => {
     }
 
     handleCloseModal();
+
+    // Auto-upload transcript to Drive (fire-and-forget, non-blocking)
+    if (pendingDriveUpload?.text) {
+      const folderKey = transcriptFolderKey(formData.grantId);
+      setDriveUploadStatus('uploading');
+      setPendingDriveUpload(null);
+      uploadTranscriptToDrive(pendingDriveUpload.text, formData.title, formData.date?.slice(0, 10), folderKey)
+        .then(result => setDriveUploadStatus({ webViewLink: result.webViewLink }))
+        .catch(() => setDriveUploadStatus('error'));
+    }
   };
 
   const handleConvertActionItems = () => {
@@ -141,6 +155,16 @@ ${meeting.actionItems || 'None'}
   const getGrantName = (grantId) => {
     const grant = grants.find(g => g.id === grantId);
     return grant ? grant.title : 'No grant linked';
+  };
+
+  // Map a grantId to the best transcript Drive subfolder
+  const transcriptFolderKey = (grantId) => {
+    if (!grantId) return 'transcripts_general';
+    const name = getGrantName(grantId).toLowerCase();
+    if (name.includes('rwjf') || name.includes('grt000937')) return 'transcripts_rwjf';
+    if (name.includes('ofd') || name.includes('jedi'))         return 'transcripts_ofd';
+    if (name.includes('lab') || name.includes('npp') || name.includes('research')) return 'transcripts_lab';
+    return 'transcripts_general';
   };
 
   const formatDate = (dateString) => {
@@ -222,8 +246,13 @@ ${meeting.actionItems || 'None'}
       }
 
       setProfileUpdates(updatedNames);
+      // Queue Drive upload to happen after user saves the form
+      if (isDriveConfigured()) {
+        setPendingDriveUpload({ text: transcriptText });
+      }
       setSelectedMeeting(null);
       setViewMode(false);
+      setDriveUploadStatus(null);
       setShowTranscriptModal(false);
       setTranscriptText('');
       setShowModal(true);
@@ -298,6 +327,26 @@ ${meeting.actionItems || 'None'}
           </button>
         </div>
       </div>
+
+      {/* Drive upload toast */}
+      {driveUploadStatus && (
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm ${driveUploadStatus === 'uploading' ? 'bg-blue-50 border-blue-200 text-blue-700' : driveUploadStatus === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+          {driveUploadStatus === 'uploading' ? (
+            <><Loader2 size={15} className="animate-spin shrink-0" /> Uploading transcript to Google Drive…</>
+          ) : driveUploadStatus === 'error' ? (
+            <><X size={15} className="shrink-0" /> Transcript Drive upload failed — you can upload manually from the Drive page.</>
+          ) : (
+            <>
+              <span className="shrink-0 font-bold">Drive</span>
+              Transcript saved to Drive.
+              <a href={driveUploadStatus.webViewLink} target="_blank" rel="noreferrer" className="ml-auto underline font-medium">Open ↗</a>
+            </>
+          )}
+          <button onClick={() => setDriveUploadStatus(null)} className="ml-auto text-current opacity-50 hover:opacity-100">
+            <X size={13} />
+          </button>
+        </div>
+      )}
 
       {/* Transcript / notes search */}
       <div className="relative mb-6">

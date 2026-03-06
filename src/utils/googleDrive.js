@@ -731,3 +731,22 @@ export const uploadKnowledgeFileToDrive = async (file) => {
   const data = await res.json();
   return { fileId: data.id, webViewLink: data.webViewLink, fileName: data.name };
 };
+
+// ── Transcript Upload ──────────────────────────────────────────────────────────
+
+/** Returns true if a Google Client ID has been saved in Settings */
+export const isDriveConfigured = () => !!localStorage.getItem(CLIENT_ID_KEY);
+
+/**
+ * Upload a meeting transcript as a .txt file to the appropriate transcript subfolder.
+ * folderKey: 'transcripts_rwjf' | 'transcripts_ofd' | 'transcripts_lab' | 'transcripts_general'
+ * Returns { fileId, webViewLink, fileName } or throws.
+ */
+export const uploadTranscriptToDrive = async (transcriptText, meetingTitle, meetingDate, folderKey = 'transcripts_general') => {
+  const safeTitle = (meetingTitle || 'Meeting').replace(/[^\w\s\-–]/g, '').replace(/\s+/g, '_').slice(0, 60);
+  const safeDate  = (meetingDate || new Date().toISOString().split('T')[0]).slice(0, 10);
+  const fileName  = `${safeDate}__${safeTitle}__transcript.txt`;
+  const blob      = new Blob([transcriptText], { type: 'text/plain' });
+  const file      = new File([blob], fileName, { type: 'text/plain' });
+  return uploadToFolderKey(file, folderKey, fileName);
+};
