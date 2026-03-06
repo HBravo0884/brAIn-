@@ -4,7 +4,7 @@ import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search, Ch
 import { extractMeetingFromTranscript } from '../utils/ai';
 
 const Meetings = () => {
-  const { meetings, grants, addMeeting, updateMeeting, deleteMeeting, addTask } = useApp();
+  const { meetings, grants, knowledgeDocs, addMeeting, updateMeeting, deleteMeeting, addTask, addKnowledgeDoc, updateKnowledgeDoc } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [viewMode, setViewMode] = useState(false);
@@ -13,6 +13,7 @@ const Meetings = () => {
   const [transcriptText, setTranscriptText] = useState('');
   const [parsingTranscript, setParsingTranscript] = useState(false);
   const [parseError, setParseError] = useState('');
+  const [profileUpdates, setProfileUpdates] = useState([]); // names updated/created in KB
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -61,7 +62,7 @@ const Meetings = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setTimeout(resetForm, 300);
+    setTimeout(() => { resetForm(); setProfileUpdates([]); }, 300);
   };
 
   const handleSubmit = (e) => {
@@ -166,7 +167,8 @@ ${meeting.actionItems || 'None'}
     setParseError('');
     try {
       const extracted = await extractMeetingFromTranscript(transcriptText);
-      // Pre-fill the meeting form with extracted data
+
+      // Pre-fill the meeting form
       setFormData({
         title: extracted.title || '',
         date: extracted.date || '',
@@ -181,6 +183,45 @@ ${meeting.actionItems || 'None'}
           ? extracted.actionItems.join('\n')
           : (extracted.actionItems || ''),
       });
+
+      // Auto-build/update stakeholder profiles in KB
+      const updatedNames = [];
+      const meetingLabel = extracted.title || 'Meeting';
+      const meetingDate = extracted.date || new Date().toISOString().split('T')[0];
+
+      for (const s of (extracted.stakeholders || [])) {
+        if (!s.name?.trim()) continue;
+        const sectionLines = [
+          `### ${meetingLabel} — ${meetingDate}`,
+        ];
+        if (s.role) sectionLines.push(`Role: ${s.role}`);
+        if (s.keyStatements) sectionLines.push(s.keyStatements);
+        if (s.commitments) sectionLines.push(`Commitments: ${s.commitments}`);
+        const section = sectionLines.join('\n');
+
+        // Find existing KB doc for this person (case-insensitive name match)
+        const existing = knowledgeDocs.find(
+          d => d.title?.toLowerCase() === s.name.toLowerCase() &&
+               (d.category === 'Stakeholder Profile' || d.tags?.includes('stakeholder'))
+        );
+
+        if (existing) {
+          updateKnowledgeDoc(existing.id, {
+            content: (existing.content || '') + '\n\n' + section,
+          });
+          updatedNames.push({ name: s.name, action: 'updated' });
+        } else {
+          addKnowledgeDoc({
+            title: s.name,
+            category: 'Stakeholder Profile',
+            content: `# Stakeholder Profile: ${s.name}\n${s.role ? `Role: ${s.role}\n` : ''}\n${section}`,
+            tags: 'stakeholder, auto-generated',
+          });
+          updatedNames.push({ name: s.name, action: 'created' });
+        }
+      }
+
+      setProfileUpdates(updatedNames);
       setSelectedMeeting(null);
       setViewMode(false);
       setShowTranscriptModal(false);
@@ -481,6 +522,28 @@ ${meeting.actionItems || 'None'}
               ) : (
                 // Edit/Create Mode
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Stakeholder profiles banner */}
+                  {profileUpdates.length > 0 && (
+                    <div className="flex items-start gap-3 p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                      <Users size={15} className="text-violet-600 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-violet-800 mb-1">
+                          {profileUpdates.length} stakeholder profile{profileUpdates.length !== 1 ? 's' : ''} saved to Knowledge Base
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {profileUpdates.map((p, i) => (
+                            <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${p.action === 'created' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                              {p.name}
+                              <span className="font-normal opacity-70">{p.action === 'created' ? '+ new' : 'updated'}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button onClick={() => setProfileUpdates([])} className="text-violet-400 hover:text-violet-600 shrink-0">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Title <span className="text-red-500">*</span>

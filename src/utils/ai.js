@@ -2720,3 +2720,70 @@ Keep each item under 60 characters. Max 5 items per array. If an array would be 
     return { urgent: [], thisWeek: [], todaysMeetings: [] };
   }
 };
+
+/**
+ * Extract meeting metadata from a pasted transcript using Claude Haiku.
+ * Returns { title, date, attendees, agenda, notes, actionItems, transcription }
+ */
+export const extractMeetingFromTranscript = async (transcript) => {
+  const today = new Date().toISOString().split('T')[0];
+  const prompt = `You are extracting structured meeting data from a transcript. Return ONLY valid JSON with no markdown fences.
+
+Transcript (first 6000 chars):
+${transcript.slice(0, 6000)}
+
+Extract and return this exact JSON structure:
+{
+  "title": "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')",
+  "date": "YYYY-MM-DD format if found in transcript, otherwise '${today}'",
+  "attendees": "Comma-separated list of attendee names found in transcript",
+  "agenda": "Main agenda items as a short bulleted list (use - prefix), max 5 items",
+  "notes": "Key discussion points and important context — 3 to 8 bullet points (use - prefix)",
+  "actionItems": "Tasks assigned to specific people — one per line with owner (use - Owner: task format), max 10",
+  "agreements": "Formal decisions, group commitments, or policy agreements reached — one per line (use - prefix), max 8",
+  "centralTopic": "One sentence describing the central topic or purpose of this meeting",
+  "stakeholders": [
+    {
+      "name": "Full name as it appears in transcript",
+      "role": "Their title/role if mentioned, else empty string",
+      "keyStatements": "What they said or contributed — 1 to 3 concise bullet points (use - prefix)",
+      "commitments": "Specific things they personally agreed to do or promised, or empty string"
+    }
+  ]
+}
+
+Rules:
+- Attendees: look for names in speaker labels (e.g. 'John:', 'DR. SMITH:'), headers, or intro statements
+- Date: look for explicit dates mentioned in opening lines or filename hints
+- Action items: owned tasks — 'will', 'need to', 'action:', 'follow up', 'next steps'
+- Agreements: group decisions — 'we agreed', 'it was decided', 'going forward', 'policy is'
+- Stakeholders: only include people who actually spoke or are explicitly named; max 8 people
+- If a field cannot be determined, use an empty string or empty array
+- Never invent information not present in the transcript`;
+
+  const response = await claudeFetch({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const raw = response.content[0].text.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  const parsed = JSON.parse(raw);
+
+  const notesLines = [];
+  if (parsed.centralTopic) notesLines.push(`Central Topic: ${parsed.centralTopic}\n`);
+  if (parsed.notes) notesLines.push(parsed.notes);
+  if (parsed.agreements) notesLines.push(`\n## Agreements\n${parsed.agreements}`);
+
+  return {
+    title: parsed.title || '',
+    date: parsed.date || today,
+    attendees: parsed.attendees || '',
+    agenda: parsed.agenda || '',
+    notes: notesLines.join('\n'),
+    actionItems: parsed.actionItems || '',
+    agreements: parsed.agreements || '',
+    stakeholders: Array.isArray(parsed.stakeholders) ? parsed.stakeholders : [],
+    transcription: transcript,
+  };
+};
