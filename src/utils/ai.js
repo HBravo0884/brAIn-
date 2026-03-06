@@ -2725,8 +2725,44 @@ Keep each item under 60 characters. Max 5 items per array. If an array would be 
  * Extract meeting metadata from a pasted transcript using Claude Haiku.
  * Returns { title, date, attendees, agenda, notes, actionItems, transcription }
  */
+// Pre-scan text for a date using regex — faster and more reliable than asking AI
+const MONTHS = { january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12 };
+const pad = n => String(n).padStart(2, '0');
+
+const prescanDate = (text) => {
+  const s = text.slice(0, 3000);
+
+  // ISO: 2026-03-05 or 2026/03/05
+  const iso = s.match(/\b(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})\b/);
+  if (iso) return `${iso[1]}-${pad(iso[2])}-${pad(iso[3])}`;
+
+  // Long form: March 5, 2026 / March 5 2026 / Wednesday, March 5, 2026
+  const long = s.match(/\b(?:\w+,\s*)?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/i);
+  if (long) return `${long[3]}-${pad(MONTHS[long[1].toLowerCase()])}-${pad(long[2])}`;
+
+  // Short month: Mar 5, 2026 / Mar. 5 2026
+  const SHORT_MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+  const shortM = s.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2}),?\s+(20\d{2})\b/i);
+  if (shortM) return `${shortM[3]}-${pad(SHORT_MONTHS[shortM[1].toLowerCase()])}-${pad(shortM[2])}`;
+
+  // US format: 3/5/2026 or 03-05-2026 (MM/DD/YYYY)
+  const mdy = s.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})\b/);
+  if (mdy) return `${mdy[3]}-${pad(mdy[1])}-${pad(mdy[2])}`;
+
+  // Short year US: 3/5/26
+  const mdyShort = s.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})\b/);
+  if (mdyShort) return `20${mdyShort[3]}-${pad(mdyShort[1])}-${pad(mdyShort[2])}`;
+
+  return null;
+};
+
 export const extractMeetingFromTranscript = async (transcript) => {
   const today = new Date().toISOString().split('T')[0];
+  const foundDate = prescanDate(transcript);
+  const dateInstruction = foundDate
+    ? `"date": "${foundDate}"  ← date was pre-detected from transcript; use this exact value`
+    : `"date": "YYYY-MM-DD — search transcript carefully for any date mention; if truly absent use '${today}'"`;
+
   const prompt = `You are extracting structured meeting data from a transcript. Return ONLY valid JSON with no markdown fences.
 
 Transcript (first 6000 chars):
@@ -2735,7 +2771,7 @@ ${transcript.slice(0, 6000)}
 Extract and return this exact JSON structure:
 {
   "title": "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')",
-  "date": "YYYY-MM-DD format if found in transcript, otherwise '${today}'",
+  "date": ${dateInstruction},
   "attendees": "Comma-separated list of attendee names found in transcript",
   "agenda": "Main agenda items as a short bulleted list (use - prefix), max 5 items",
   "notes": "Key discussion points and important context — 3 to 8 bullet points (use - prefix)",
@@ -2777,7 +2813,7 @@ Rules:
 
   return {
     title: parsed.title || '',
-    date: parsed.date || today,
+    date: foundDate || parsed.date || today,
     attendees: parsed.attendees || '',
     agenda: parsed.agenda || '',
     notes: notesLines.join('\n'),
