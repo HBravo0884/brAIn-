@@ -69,9 +69,16 @@ const loadGapi = () => new Promise((resolve, reject) => {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-const getClientId = () => localStorage.getItem(CLIENT_ID_KEY) || '';
+const ENV_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+const getClientId = () => localStorage.getItem(CLIENT_ID_KEY) || ENV_CLIENT_ID;
 
 export const saveClientId = (id) => localStorage.setItem(CLIENT_ID_KEY, id.trim());
+
+// Auto-seed localStorage from env on first load so user never has to paste it manually
+if (ENV_CLIENT_ID && !localStorage.getItem(CLIENT_ID_KEY)) {
+  localStorage.setItem(CLIENT_ID_KEY, ENV_CLIENT_ID);
+}
 
 export const isConfigured = () => !!getClientId();
 

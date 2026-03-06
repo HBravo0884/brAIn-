@@ -5,7 +5,7 @@ import { extractMeetingFromTranscript } from '../utils/ai';
 import { isDriveConfigured, uploadTranscriptToDrive } from '../utils/googleDrive';
 
 const Meetings = () => {
-  const { meetings, grants, knowledgeDocs, addMeeting, updateMeeting, deleteMeeting, addTask, addKnowledgeDoc, updateKnowledgeDoc } = useApp();
+  const { meetings, grants, knowledgeDocs, addMeeting, updateMeeting, deleteMeeting, addTask, addTodo, addKnowledgeDoc, updateKnowledgeDoc } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [viewMode, setViewMode] = useState(false);
@@ -109,13 +109,18 @@ const Meetings = () => {
   const handleConvertActionItems = () => {
     if (!actionItemPrompt) return;
     actionItemPrompt.lines.forEach(line => {
+      // Add to Tasks (Kanban / Calendar)
       addTask({
         title: line,
         status: 'To Do',
-        priority: 'Medium',
+        priority: 'medium',
         grantId: actionItemPrompt.grantId || '',
-        source: 'meeting',
-        createdAt: new Date().toISOString(),
+      });
+      // Also add to Todo list
+      addTodo({
+        text: line,
+        completed: false,
+        priority: 'medium',
       });
     });
     setActionItemPrompt(null);
