@@ -397,14 +397,25 @@ export const AppProvider = ({ children }) => {
     setGiftCardDistributions(prev => prev.filter(gcd => gcd.id !== id));
   };
 
+  // Cap transcription at 30 KB — full text lives in Drive, not localStorage
+  const TRANSCRIPT_MAX = 30_000;
+  const capTranscript = (obj) => {
+    if (obj.transcription && obj.transcription.length > TRANSCRIPT_MAX) {
+      return { ...obj, transcription: obj.transcription.slice(0, TRANSCRIPT_MAX) + '\n\n[Full transcript stored in Google Drive]' };
+    }
+    return obj;
+  };
+
   // Meeting operations
   const addMeeting = (meeting) => {
     if (!validateSafe(MeetingSchema, meeting, 'meeting')) return;
-    setMeetings(prev => [...prev, { ...meeting, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
+    const safe = capTranscript(meeting);
+    setMeetings(prev => [...prev, { ...safe, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
   };
 
   const updateMeeting = (id, updates) => {
-    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...updates, updatedAt: new Date().toISOString() } : m));
+    const safe = capTranscript(updates);
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...safe, updatedAt: new Date().toISOString() } : m));
   };
 
   const deleteMeeting = (id) => {

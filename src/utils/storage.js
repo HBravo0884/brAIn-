@@ -226,6 +226,52 @@ export const storage = {
     }
   },
 
+  getStorageBreakdown() {
+    const LABELS = {
+      [STORAGE_KEYS.MEETINGS]:          'Meetings (+ transcripts)',
+      [STORAGE_KEYS.KNOWLEDGE_DOCS]:    'Knowledge Base docs',
+      [STORAGE_KEYS.BUDGETS]:           'Budgets & expenses',
+      [STORAGE_KEYS.TASKS]:             'Tasks',
+      [STORAGE_KEYS.DOCUMENTS]:         'Documents',
+      [STORAGE_KEYS.GRANTS]:            'Grants',
+      [STORAGE_KEYS.STUDENTS]:          'Studio students',
+      [STORAGE_KEYS.PAYMENT_REQUESTS]:  'Payment requests',
+      [STORAGE_KEYS.TRAVEL_REQUESTS]:   'Travel requests',
+      [STORAGE_KEYS.PERSONNEL]:         'Personnel',
+      [STORAGE_KEYS.REPLY_QUEUE]:       'Reply queue',
+      [STORAGE_KEYS.REPLY_CONTEXT_DOCS]:'Reply context docs',
+      [STORAGE_KEYS.AI_COST_LOG]:       'AI cost log',
+      [STORAGE_KEYS.TODOS]:             'Todo list',
+      [STORAGE_KEYS.TEMPLATES]:         'Templates',
+      [STORAGE_KEYS.ANALYZED_DOC_IDS]:  'Analyzed doc IDs',
+      [STORAGE_KEYS.CONFLICTS]:         'Conflicts',
+    };
+    const totalBytes = 5_242_880;
+    const rows = [];
+    for (const [key, label] of Object.entries(LABELS)) {
+      const raw = localStorage.getItem(key) || '';
+      const bytes = new Blob([raw]).size;
+      if (bytes > 0) rows.push({ key, label, bytes, kb: (bytes / 1024).toFixed(1), percent: Math.round((bytes / totalBytes) * 100) });
+    }
+    return rows.sort((a, b) => b.bytes - a.bytes);
+  },
+
+  // Replace full transcript text in meetings with a short preview to free space.
+  // Call after confirming transcripts are backed up to Drive.
+  trimTranscripts(previewChars = 500) {
+    const meetings = this.getMeetings();
+    let trimmed = 0;
+    const updated = meetings.map(m => {
+      if (m.transcription && m.transcription.length > previewChars + 100) {
+        trimmed++;
+        return { ...m, transcription: m.transcription.slice(0, previewChars) + '\n\n[Full transcript stored in Google Drive]' };
+      }
+      return m;
+    });
+    if (trimmed > 0) this.setMeetings(updated);
+    return trimmed;
+  },
+
   getAiCostLog() {
     return this.get(STORAGE_KEYS.AI_COST_LOG) || [];
   },

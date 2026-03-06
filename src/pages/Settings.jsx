@@ -13,7 +13,7 @@ import {
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff, Mail, ChevronUp, ChevronDown } from 'lucide-react';
+import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff, Mail, ChevronUp, ChevronDown, Scissors } from 'lucide-react';
 import { generateAdvisorSummary } from '../utils/ai';
 
 const Settings = () => {
@@ -505,20 +505,44 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Storage Quota Bar */}
+            {/* Storage Quota Bar + Breakdown */}
             {(() => {
               const { usedBytes, totalBytes, percent } = storage.getQuotaInfo();
-              const color = percent >= 90 ? 'bg-red-500' : percent >= 70 ? 'bg-amber-500' : 'bg-green-500';
+              const barColor = percent >= 90 ? 'bg-red-500' : percent >= 70 ? 'bg-amber-500' : 'bg-green-500';
               const textColor = percent >= 90 ? 'text-red-700' : percent >= 70 ? 'text-amber-700' : 'text-gray-600';
+              const breakdown = storage.getStorageBreakdown();
+              const ROW_COLORS = ['bg-red-400','bg-orange-400','bg-amber-400','bg-yellow-400','bg-lime-400','bg-green-400','bg-teal-400','bg-cyan-400','bg-sky-400','bg-blue-400'];
               return (
-                <div className="mb-3">
+                <div className="mb-4 space-y-2">
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-500">Storage used</span>
-                    <span className={`font-medium ${textColor}`}>{percent}% ({(usedBytes / 1024).toFixed(0)} KB / {(totalBytes / 1024).toFixed(0)} KB)</span>
+                    <span className="text-gray-500 font-medium">Storage used</span>
+                    <span className={`font-bold ${textColor}`}>{percent}% &nbsp;({(usedBytes / 1024).toFixed(0)} KB / {(totalBytes / 1024).toFixed(0)} KB)</span>
                   </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                  <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(percent, 100)}%` }} />
                   </div>
+                  {/* Per-key breakdown */}
+                  <div className="mt-2 space-y-1">
+                    {breakdown.map((row, i) => (
+                      <div key={row.key} className="flex items-center gap-2 text-xs">
+                        <div className={`w-2 h-2 rounded-sm shrink-0 ${ROW_COLORS[i] || 'bg-gray-300'}`} />
+                        <span className="flex-1 text-gray-600 truncate">{row.label}</span>
+                        <span className="font-mono text-gray-500 shrink-0">{row.kb} KB</span>
+                        <span className="text-gray-400 shrink-0 w-8 text-right">{row.percent}%</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Trim transcripts */}
+                  <button
+                    onClick={() => {
+                      const n = storage.trimTranscripts();
+                      alert(n > 0 ? `Trimmed ${n} transcript${n !== 1 ? 's' : ''}. Reload the page to see updated storage.` : 'No long transcripts found to trim.');
+                    }}
+                    className="w-full mt-1 flex items-center justify-center gap-2 text-xs py-2 px-3 border border-amber-200 hover:border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors font-medium"
+                  >
+                    <Scissors size={13} />
+                    Trim transcripts (keep Drive copy, free local space)
+                  </button>
                 </div>
               );
             })()}
