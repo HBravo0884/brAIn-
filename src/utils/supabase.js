@@ -18,7 +18,10 @@ export const isSupabaseEnabled = () => !!supabase;
 export const syncEntityToSupabase = async (tableName, items) => {
   if (!supabase || !items?.length) return;
   try {
-    const rows = items.map(item => ({
+    // Skip locally-trimmed records — their full content lives in Supabase already
+    const syncable = items.filter(item => !item._transcriptTrimmed);
+    if (!syncable.length) return;
+    const rows = syncable.map(item => ({
       id: item.id,
       data: item,
       updated_at: item.updatedAt || new Date().toISOString(),

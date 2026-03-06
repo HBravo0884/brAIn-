@@ -258,17 +258,26 @@ export const storage = {
 
   // Replace full transcript text in meetings with a short preview to free space.
   // Call after confirming transcripts are backed up to Drive.
+  // Trim transcripts in localStorage ONLY — bypasses React state so Supabase
+  // never receives the truncated version. Full text stays in Supabase + Drive.
   trimTranscripts(previewChars = 500) {
     const meetings = this.getMeetings();
     let trimmed = 0;
     const updated = meetings.map(m => {
       if (m.transcription && m.transcription.length > previewChars + 100) {
         trimmed++;
-        return { ...m, transcription: m.transcription.slice(0, previewChars) + '\n\n[Full transcript stored in Google Drive]' };
+        return {
+          ...m,
+          transcription: m.transcription.slice(0, previewChars) + '\n\n[Full transcript stored in Google Drive & Supabase]',
+          _transcriptTrimmed: true,  // marker so sync can detect this
+        };
       }
       return m;
     });
-    if (trimmed > 0) this.setMeetings(updated);
+    if (trimmed > 0) {
+      // Write directly to localStorage, bypassing setMeetings → Supabase sync
+      localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(updated));
+    }
     return trimmed;
   },
 
