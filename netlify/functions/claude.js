@@ -6,12 +6,15 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Prefer a user-supplied key (sent from the browser Settings page),
+  // fall back to the server-side environment variable.
+  const apiKey =
+    event.headers['x-user-api-key'] || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'ANTHROPIC_API_KEY environment variable not set on server.' }),
+      body: JSON.stringify({ error: 'No API key available. Add one in Settings or set ANTHROPIC_API_KEY on the server.' }),
     };
   }
 
