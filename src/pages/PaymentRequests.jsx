@@ -7,6 +7,7 @@ import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import { Plus, DollarSign, Clock, CheckCircle, XCircle, Eye, Edit, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import EditableText from '../components/editmode/EditableText';
 
 const PaymentRequests = () => {
   const { paymentRequests, addPaymentRequest, updatePaymentRequest, deletePaymentRequest, grants, settings } = useApp();
@@ -167,7 +168,7 @@ const PaymentRequests = () => {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Requests (PRF)</h1>
+          <EditableText id="title-payments" defaultText="Payment Requests (PRF)" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
           <p className="text-gray-600">Manage RWJF grant payment request forms and approvals</p>
         </div>
         <Button

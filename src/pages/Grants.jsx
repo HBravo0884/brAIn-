@@ -9,6 +9,7 @@ import EnhancedGrantDetails from '../components/grants/EnhancedGrantDetails';
 import { createRWJFGrant, createRWJFBudget } from '../utils/rwjfGrantSetup';
 import { Plus, Award, Edit, Trash2, Calendar, DollarSign, Eye, Target, Star } from 'lucide-react';
 import { format } from 'date-fns';
+import EditableText from '../components/editmode/EditableText';
 
 const Grants = () => {
   const { grants, addGrant, updateGrant, deleteGrant, addBudget } = useApp();
@@ -110,41 +111,50 @@ const Grants = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Grants</h1>
-          <p className="text-gray-600">Manage your grant applications and awards</p>
-        </div>
-        <div className="flex gap-3">
-          {!rwjfGrantExists && (
+      {/* ── Grants Hero Banner — HUCM College of Medicine art ── */}
+      <div className="relative rounded-2xl overflow-hidden mb-8" style={{ minHeight: '160px' }}>
+        <div
+          className="absolute inset-0 bg-cover bg-bottom"
+          style={{ backgroundImage: "url('/college%20of%20medicine%20a.png')", filter: 'brightness(0.45)' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/90 via-gray-900/55 to-transparent" />
+        <div className="relative flex items-end justify-between gap-4 px-7 py-6 h-full" style={{ minHeight: '160px' }}>
+          <div>
+            <p className="text-[10px] font-bold text-white/75 uppercase tracking-widest mb-2">Howard University · RWJF Grant GRT000937</p>
+            <EditableText id="title-grants" defaultText="Grants" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
+            <p className="text-white/75 text-sm mt-1.5 font-medium">Manage your grant applications and awards</p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            {!rwjfGrantExists && (
+              <Button
+                variant="success"
+                onClick={handleCreateRWJFGrant}
+                className="flex items-center gap-2"
+              >
+                <Star size={16} />
+                Create RWJF Grant
+              </Button>
+            )}
             <Button
-              variant="success"
-              onClick={handleCreateRWJFGrant}
-              className="flex items-center gap-2"
+              variant="secondary"
+              onClick={() => {
+                setEditingGrant(null);
+                setFormData({
+                  title: '',
+                  fundingAgency: '',
+                  amount: '',
+                  status: 'pending',
+                  startDate: '',
+                  endDate: '',
+                  aims: []
+                });
+                setIsModalOpen(true);
+              }}
             >
-              <Star size={20} />
-              Create RWJF Grant
+              <Plus size={16} className="mr-1" />
+              New Grant
             </Button>
-          )}
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingGrant(null);
-              setFormData({
-                title: '',
-                fundingAgency: '',
-                amount: '',
-                status: 'pending',
-                startDate: '',
-                endDate: '',
-                aims: []
-              });
-              setIsModalOpen(true);
-            }}
-          >
-            <Plus size={20} className="mr-2" />
-            New Grant
-          </Button>
+          </div>
         </div>
       </div>
 

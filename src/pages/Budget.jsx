@@ -9,6 +9,7 @@ import AwardLetterImport from '../components/budget/AwardLetterImport';
 import AIAssistant from '../components/ai/AIAssistant';
 import { DollarSign, Plus, TrendingUp, TrendingDown, Upload, Droplets, LayoutList, FileCheck } from 'lucide-react';
 import { createRWJFBudget } from '../utils/rwjfGrantSetup';
+import EditableText from '../components/editmode/EditableText';
 
 const Budget = () => {
   const { budgets, grants, addBudget } = useApp();
@@ -131,7 +132,7 @@ const Budget = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Budget Tracking</h1>
+          <EditableText id="title-budget" defaultText="Budget Tracking" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
           <p className="text-gray-600">Monitor your financial allocations and spending</p>
         </div>
         <div className="flex gap-3">

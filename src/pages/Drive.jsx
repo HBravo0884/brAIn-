@@ -5,6 +5,7 @@ import {
   Award, Briefcase, FlaskConical, Brain, Mic, Clock, Sparkles,
   Search, FileText, AlertCircle, ChevronDown as ChevDown,
 } from 'lucide-react';
+import EditableText from '../components/editmode/EditableText';
 import {
   DRIVE_FOLDER_DEFS,
   initializeDriveFolders,
@@ -365,14 +366,14 @@ function DriveSearchPanel({ folderIds }) {
       )}
 
       {status === 'done' && results.length === 0 && (
-        <p className="mt-4 text-sm text-gray-400 dark:text-gray-500 text-center py-4">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-500 text-center py-4">
           No files found for "{query}"{scope === 'ours' ? ' in brAIn folders' : ''}.
         </p>
       )}
 
       {status === 'done' && results.length > 0 && (
         <div className="mt-4">
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+          <p className="text-xs text-gray-500 dark:text-gray-500 mb-3">
             {results.length} file{results.length !== 1 ? 's' : ''} found for "{query}"
           </p>
           <ul className="space-y-2">
@@ -382,7 +383,7 @@ function DriveSearchPanel({ folderIds }) {
                 <span className="text-lg flex-shrink-0">{mimeIcon(r.mimeType)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{r.name}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
                     {r.folderLabel
                       ? <span className="text-blue-500 dark:text-blue-400">{r.folderLabel}</span>
                       : <span className="italic">Unknown folder</span>
@@ -618,7 +619,7 @@ export default function Drive() {
             <HardDrive size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Google Drive</h1>
+            <EditableText id="title-drive" defaultText="Google Drive" tag="h1" className="text-xl font-bold text-gray-900 dark:text-gray-100" />
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {!configured
                 ? <span className="text-amber-600 dark:text-amber-400">Google Client ID not configured — go to Settings → Google Drive</span>
@@ -697,9 +698,9 @@ export default function Drive() {
           <ul className="space-y-2">
             {recentUploads.slice(0, 10).map((u, i) => (
               <li key={u.fileId || i} className="flex items-center gap-3 text-sm py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                <span className="text-xs text-gray-400 dark:text-gray-500 w-24 flex-shrink-0">{u.uploadedAt?.slice(0, 10)}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-500 w-24 flex-shrink-0">{u.uploadedAt?.slice(0, 10)}</span>
                 <span className="flex-1 text-gray-700 dark:text-gray-300 truncate font-medium">{u.fileName}</span>
-                <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">→ {u.folderLabel}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-500 hidden sm:block">→ {u.folderLabel}</span>
                 {u.webViewLink && (
                   <a href={u.webViewLink} target="_blank" rel="noopener noreferrer"
                     className="flex-shrink-0 text-xs flex items-center gap-1 text-green-600 hover:text-green-700 dark:text-green-400 font-medium">

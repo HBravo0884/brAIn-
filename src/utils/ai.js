@@ -1034,7 +1034,7 @@ const buildGlobalSystemPrompt = (grants, budgets, tasks, knowledgeDocs = [], mee
     kbBlock = `\n\n=== KNOWLEDGE BASE (${knowledgeDocs.length} docs total, showing ${capped.length} most recent) ===\n\n${parts.join('\n\n---\n\n')}`;
   }
 
-  return `You are the AI Assistant for RWJF Grant GRT000937 Program Manager Hub.
+  return `You are the AI Assistant for RWJF Grant GRT000937 brAIn.
 Today: ${today}
 
 You can read and modify ALL app data. Tools available:
@@ -2132,7 +2132,7 @@ export const parseNotebookLMOutput = async (notebookText, currentData) => {
   const personnelContext = personnel.map(p => `ID:${p.id} | ${p.name} | ${p.role} | ${p.email}`).join('\n') || 'none';
   const meetingsContext = meetings.slice(0, 20).map(m => `ID:${m.id} | ${m.date} | ${m.title}`).join('\n') || 'none';
 
-  const prompt = `You are an AI assistant for the RWJF Grant GRT000937 Program Manager Hub.
+  const prompt = `You are an AI assistant for the RWJF Grant GRT000937 brAIn.
 Today: ${today}
 
 The user pasted output from a NotebookLM session. Analyze it against the current app data and produce a structured import proposal.

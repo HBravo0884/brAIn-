@@ -9,6 +9,7 @@ import { Kanban, Calendar, BarChart3, Network, BookOpen } from 'lucide-react';
 import GanttChart from '../components/workflows/GanttChart';
 import ProgressDashboard from '../components/workflows/ProgressDashboard';
 import FlowchartView from '../components/workflows/FlowchartView';
+import EditableText from '../components/editmode/EditableText';
 
 const Workflows = () => {
   const [activeView, setActiveView] = useState('kanban');
@@ -25,7 +26,7 @@ const Workflows = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Workflows</h1>
+        <EditableText id="title-workflows" defaultText="Workflows" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
         <p className="text-gray-600">Visualize and manage your project workflows</p>
       </div>
 

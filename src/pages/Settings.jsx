@@ -15,6 +15,7 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { User, Save, RefreshCw, Download, Upload, CheckCheck, AlertTriangle, Database, Key, Eye, EyeOff, Brain, Loader2, Wand2, FileText, Zap, Cloud, CloudOff, Mail, ChevronUp, ChevronDown, Scissors } from 'lucide-react';
 import { generateAdvisorSummary } from '../utils/ai';
+import EditableText from '../components/editmode/EditableText';
 
 const Settings = () => {
   const { settings, setSettings } = useApp();
@@ -243,9 +244,18 @@ const Settings = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings & Profile</h1>
-        <p className="text-gray-600">Configure your default information for auto-filling forms</p>
+      {/* ── Settings Hero Banner — Office.png ── */}
+      <div className="relative rounded-2xl overflow-hidden mb-8" style={{ minHeight: '140px' }}>
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/Office.png')", filter: 'brightness(0.4)' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/90 via-gray-900/60 to-transparent" />
+        <div className="relative px-7 py-6 flex flex-col justify-end h-full" style={{ minHeight: '140px' }}>
+          <p className="text-[10px] font-bold text-white/75 uppercase tracking-widest mb-2">brAIn · Configuration</p>
+          <EditableText id="title-settings" defaultText="Settings & Profile" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
+          <p className="text-white/75 text-sm mt-1.5 font-medium">Configure your default information for auto-filling forms</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -586,7 +596,7 @@ const Settings = () => {
                 </div>
               )}
 
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
+              <p className="text-xs text-gray-500 text-center leading-relaxed">
                 Save backups to Google Drive or iCloud for safekeeping
               </p>
             </div>
@@ -611,14 +621,14 @@ const Settings = () => {
                   <div className="flex justify-between"><span className="text-gray-500">Today</span><span className="font-medium">{fmt(summary.today)}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">This month</span><span className="font-medium">{fmt(summary.thisMonth)}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">All time</span><span className="font-medium">{fmt(summary.allTime)}</span></div>
-                  <div className="flex justify-between text-xs text-gray-400"><span>Log entries</span><span>{summary.entries}</span></div>
+                  <div className="flex justify-between text-xs text-gray-500"><span>Log entries</span><span>{summary.entries}</span></div>
                   <button
                     onClick={() => { storage.setAiCostLog([]); window.location.reload(); }}
                     className="w-full mt-1 text-xs py-1.5 px-3 border border-gray-200 hover:border-red-300 hover:text-red-600 text-gray-500 rounded-lg transition-colors"
                   >
                     Clear Log
                   </button>
-                  <p className="text-xs text-gray-400">Estimates only — see Anthropic console for exact billing.</p>
+                  <p className="text-xs text-gray-500">Estimates only — see Anthropic console for exact billing.</p>
                 </div>
               );
             })()}
@@ -750,7 +760,7 @@ const Settings = () => {
                 </p>
               )}
 
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
+              <p className="text-xs text-gray-500 text-center leading-relaxed">
                 Classified by Claude Haiku — todos go to Quick Todos, tasks go to Grant Tasks
               </p>
             </div>
@@ -785,7 +795,7 @@ const Settings = () => {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Model</label>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-500">
                 {advisorProfile.length.toLocaleString()} chars
                 {advisorProfile.length > 0 && (() => {
                   const words = Math.round(advisorProfile.length / 5);
@@ -860,7 +870,7 @@ const Settings = () => {
               {advisorProfile && (
                 <button
                   onClick={() => { if (window.confirm('Clear advisor profile and summary?')) { setAdvisorProfile(''); setAdvisorSummary(''); } }}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  className="text-xs text-gray-500 hover:text-red-500 transition-colors"
                 >
                   Clear all
                 </button>

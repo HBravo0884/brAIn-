@@ -4,6 +4,7 @@ import {
   generateDocSummary, parseEmailThread, extractTextFromFile,
 } from '../utils/ai';
 import { isConfigured, uploadKnowledgeFileToDrive } from '../utils/googleDrive';
+import EditableText from '../components/editmode/EditableText';
 import {
   BookMarked, Plus, Mail, Search, Trash2, Eye, Tag,
   Loader2, Sparkles, FileText, ChevronDown, ChevronUp,
@@ -96,7 +97,7 @@ function DocCard({ doc, onView, onDelete }) {
         </div>
       )}
 
-      <div className="text-xs text-gray-400 mt-auto">{date}</div>
+      <div className="text-xs text-gray-500 mt-auto">{date}</div>
     </div>
   );
 }
@@ -605,16 +606,23 @@ const KnowledgeBase = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-            <BookMarked size={20} className="text-white" />
+      {/* ── Knowledge Base Hero Banner — Brainbow fluorescence art ── */}
+      <div className="relative rounded-2xl overflow-hidden mb-8" style={{ minHeight: '160px' }}>
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/Brainbow%20.png')", filter: 'brightness(0.5) saturate(1.3)' }}
+        />
+        {/* Deep indigo/purple overlay for neuro-science atmosphere */}
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/85 via-purple-900/60 to-transparent" />
+        <div className="relative px-7 py-6 flex flex-col justify-end h-full" style={{ minHeight: '160px' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-indigo-500/40 backdrop-blur-sm border border-indigo-400/30 flex items-center justify-center">
+              <BookMarked size={14} className="text-indigo-200" />
+            </div>
+            <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">brAIn · Knowledge</p>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Knowledge Base</h1>
-            <p className="text-gray-500 text-sm">Policies, SOPs, and email threads — feeding your AI assistant</p>
-          </div>
+          <EditableText id="title-knowledge" defaultText="Knowledge Base" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
+          <p className="text-indigo-100/80 text-sm mt-1.5 font-medium">Policies, SOPs, and email threads — feeding your AI assistant</p>
         </div>
       </div>
 

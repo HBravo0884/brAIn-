@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { Plus, Trash2, Check, X, ListTodo, Edit2, Calendar, ChevronDown } from 'lucide-react';
+import EditableText from '../components/editmode/EditableText';
 
 const PRIORITY_OPTIONS = [
   { value: 'high',   emoji: '🔴', label: 'High',   color: 'text-red-600 dark:text-red-400' },
@@ -134,7 +135,7 @@ const QuickToDo = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">Personal To-Do</h1>
+        <EditableText id="title-quick-todo" defaultText="Personal To-Do" tag="h1" className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100" />
         <p className="text-gray-600 dark:text-gray-400">Personal checklist — quick captures that don't need a full grant task card</p>
       </div>
 

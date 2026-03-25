@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Calendar, Users, Plus, X, Edit2, Trash2, Download, FileText, Search, CheckSquare, Mic, Loader2 } from 'lucide-react';
 import { extractMeetingFromTranscript } from '../utils/ai';
 import { isDriveConfigured, uploadTranscriptToDrive } from '../utils/googleDrive';
+import EditableText from '../components/editmode/EditableText';
 
 const Meetings = () => {
   const { meetings, grants, knowledgeDocs, addMeeting, updateMeeting, deleteMeeting, addTask, addTodo, addKnowledgeDoc, updateKnowledgeDoc } = useApp();
@@ -308,28 +309,36 @@ ${meeting.actionItems || 'None'}
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Meetings</h1>
-          <p className="text-gray-600 mt-1">Manage meetings with transcription support for NotebookLM analysis</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { setTranscriptText(''); setParseError(''); setShowTranscriptModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
-            title="Paste a transcript and let AI extract meeting details automatically"
-          >
-            <Mic size={18} />
-            Import Transcript
-          </button>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <Plus size={20} />
-            New Meeting
-          </button>
+      {/* ── Meetings Hero Banner — Lecture Hall Render ── */}
+      <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/Lecture%20Hall%20Render.png')", filter: 'brightness(0.4)' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/90 via-gray-900/55 to-transparent" />
+        <div className="relative flex items-end justify-between gap-4 px-7 py-6 h-full" style={{ minHeight: '160px' }}>
+          <div>
+            <p className="text-[10px] font-bold text-white/75 uppercase tracking-widest mb-2">brAIn · Team & Schedule</p>
+            <EditableText id="title-meetings" defaultText="Meetings" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
+            <p className="text-white/75 text-sm mt-1.5 font-medium">Transcription support for NotebookLM analysis</p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => { setTranscriptText(''); setParseError(''); setShowTranscriptModal(true); }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              title="Paste a transcript and let AI extract meeting details automatically"
+            >
+              <Mic size={15} />
+              Import Transcript
+            </button>
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold rounded-lg border border-white/25 backdrop-blur-sm transition-colors"
+            >
+              <Plus size={15} />
+              New Meeting
+            </button>
+          </div>
         </div>
       </div>
 
@@ -392,7 +401,7 @@ ${meeting.actionItems || 'None'}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-gray-900 text-sm">{meeting.title}</span>
-                    <span className="text-xs text-gray-400">{formatDate(meeting.date)}</span>
+                    <span className="text-xs text-gray-500">{formatDate(meeting.date)}</span>
                   </div>
                   {snippet && (
                     <p className="text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 leading-relaxed">
@@ -410,17 +419,24 @@ ${meeting.actionItems || 'None'}
 
       {/* Meetings Grid */}
       {meetings.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No meetings yet</h3>
-          <p className="text-gray-600 mb-4">Create your first meeting to get started</p>
-          <button
-            onClick={() => handleOpenModal()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <Plus size={20} />
-            New Meeting
-          </button>
+        <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '220px' }}>
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: "url('/Hallway%20Render.png')", filter: 'brightness(0.35)' }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/50 to-transparent" />
+          <div className="relative flex flex-col items-center justify-center text-center py-16 px-6 h-full" style={{ minHeight: '220px' }}>
+            <Calendar size={36} className="text-white/40 mb-3" />
+            <h3 className="text-xl font-bold text-white mb-1.5">No meetings yet</h3>
+            <p className="text-white/75 text-sm mb-5 max-w-xs">Log your first meeting to start tracking notes, attendees, and transcriptions.</p>
+            <button
+              onClick={() => handleOpenModal()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <Plus size={16} />
+              New Meeting
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -799,7 +815,7 @@ Action Items:
                 </button>
               </div>
 
-              <p className="text-xs text-gray-400 text-center">
+              <p className="text-xs text-gray-500 text-center">
                 Uses Claude Haiku — fast and inexpensive. Extracts title, date, attendees, agenda, notes, and action items.
                 You can review and edit everything before saving.
               </p>

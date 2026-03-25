@@ -3,15 +3,16 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  cacheDir: '/sessions/keen-hopeful-clarke/.vite-cache',
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['brain-icon.png'],
       manifest: {
-        name: 'brAIn — Program Manager Hub',
+        name: 'brAIn',
         short_name: 'brAIn',
-        description: 'RWJF Grant GRT000937 Program Manager AI Hub',
+        description: 'brAIn — RWJF Grant Program Manager at Howard University College of Medicine',
         theme_color: '#5b8a8a',
         background_color: '#f9fafb',
         display: 'standalone',
@@ -35,6 +36,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB — covers the art assets
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,

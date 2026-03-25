@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { extractFormFields } from '../utils/ai';
+import EditableText from '../components/editmode/EditableText';
 
 // ── Icon lookup ────────────────────────────────────────────────────────────────
 const ICON_MAP = { Plane, CreditCard, DollarSign, ShoppingCart, ClipboardList, Rocket, FileText };
@@ -294,7 +295,7 @@ const TaskLauncher = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Task Launcher</h1>
+          <EditableText id="title-tasks" defaultText="Task Launcher" tag="h1" className="text-2xl font-bold text-gray-900" />
           <p className="text-sm text-gray-500 mt-1">Start a task workflow — forms load with known fields pre-filled</p>
         </div>
         <button
@@ -366,7 +367,7 @@ const TaskLauncher = () => {
               <p className="text-xs text-gray-500 leading-relaxed flex-1">{t.description}</p>
 
               {/* Meta row */}
-              <div className="flex items-center gap-3 text-xs text-gray-400">
+              <div className="flex items-center gap-3 text-xs text-gray-500">
                 <span>{t.forms.length} form{t.forms.length !== 1 ? 's' : ''}</span>
                 <span>·</span>
                 <span>{t.appLinks.length} link{t.appLinks.length !== 1 ? 's' : ''}</span>
@@ -397,7 +398,7 @@ const TaskLauncher = () => {
                 </div>
                 <div>
                   <h2 className="font-bold text-gray-900">{runningTask.name}</h2>
-                  <p className="text-xs text-gray-400">{catBadge(runningTask.category)}</p>
+                  <p className="text-xs text-gray-500">{catBadge(runningTask.category)}</p>
                 </div>
               </div>
               <button onClick={closeRun} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
@@ -446,7 +447,7 @@ const TaskLauncher = () => {
                       ))}
                     </select>
                     {selectedGrant && (
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         Auto-fill: PI = {resolveAutoFill('pi.name', settings, selectedGrant)} · Worktag = {selectedGrant.worktag || '—'} · CC = {selectedGrant.costCenter || '—'}
                       </p>
                     )}
@@ -476,7 +477,7 @@ const TaskLauncher = () => {
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">Forms</p>
                     {runForms.length === 0 && (
-                      <p className="text-xs text-gray-400 mb-2">No forms attached yet. Upload one below.</p>
+                      <p className="text-xs text-gray-500 mb-2">No forms attached yet. Upload one below.</p>
                     )}
                     <div className="space-y-3">
                       {runForms.map(form => (
@@ -489,7 +490,7 @@ const TaskLauncher = () => {
                             <div className="flex items-center gap-2">
                               <FileText size={15} className="text-gray-400" />
                               <span className="text-sm font-medium text-gray-700">{form.name}</span>
-                              <span className="text-xs text-gray-400">({form.fields.length} fields)</span>
+                              <span className="text-xs text-gray-500">({form.fields.length} fields)</span>
                               {extracting === form.id && <Loader2 size={13} className="animate-spin text-primary-500" />}
                             </div>
                             {expandedForms[form.id] ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
@@ -507,7 +508,7 @@ const TaskLauncher = () => {
                               )}
                               {/* Fields */}
                               {form.fields.length === 0 ? (
-                                <p className="text-xs text-gray-400 text-center py-2">No fields — re-upload and analyze to extract them</p>
+                                <p className="text-xs text-gray-500 text-center py-2">No fields — re-upload and analyze to extract them</p>
                               ) : (
                                 form.fields.map(field => {
                                   const filled = field.autoFillKey && resolveAutoFill(field.autoFillKey, settings, selectedGrant);
@@ -637,7 +638,7 @@ const TaskLauncher = () => {
                     <Plus size={12} /> Add Link
                   </button>
                 </div>
-                {editLinks.length === 0 && <p className="text-xs text-gray-400">No links yet.</p>}
+                {editLinks.length === 0 && <p className="text-xs text-gray-500">No links yet.</p>}
                 {editLinks.map((link, i) => (
                   <div key={i} className="flex gap-2 mb-2">
                     <input
@@ -664,13 +665,13 @@ const TaskLauncher = () => {
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-gray-700">Forms</label>
                 </div>
-                {editForms.length === 0 && <p className="text-xs text-gray-400 mb-2">No forms yet. Upload one below.</p>}
+                {editForms.length === 0 && <p className="text-xs text-gray-500 mb-2">No forms yet. Upload one below.</p>}
                 {editForms.map(form => (
                   <div key={form.id} className="border border-gray-200 rounded-xl mb-2 overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
                       <span className="text-sm font-medium text-gray-700 truncate">{form.name}</span>
                       <div className="flex items-center gap-2">
-                        {form.fields.length > 0 && <span className="text-xs text-gray-400">{form.fields.length} fields</span>}
+                        {form.fields.length > 0 && <span className="text-xs text-gray-500">{form.fields.length} fields</span>}
                         {analyzingForm === form.id && <Loader2 size={13} className="animate-spin text-primary-500" />}
                         <button onClick={() => removeEditForm(form.id)} className="p-1 text-gray-400 hover:text-red-500"><X size={13} /></button>
                       </div>

@@ -22,6 +22,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { analyzeReplyItem, getAdvisorAdvice } from '../utils/ai';
 import { useNavigate, Link } from 'react-router-dom';
+import EditableText from '../components/editmode/EditableText';
 
 const URGENCY_CONFIG = {
   urgent: { label: 'Urgent',  color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200',    dot: 'bg-red-500'    },
@@ -216,7 +217,7 @@ const ReplyCard = ({ item, onMarkReplied, onDelete, onUpdateItem, replyContextDo
             <button
               onClick={handleGetAdvice}
               disabled={fetchingAdvice}
-              className="text-xs text-gray-400 hover:text-violet-600 transition-colors flex items-center gap-1"
+              className="text-xs text-gray-500 hover:text-violet-600 transition-colors flex items-center gap-1"
             >
               {fetchingAdvice ? <Loader2 size={11} className="animate-spin" /> : <Brain size={11} />}
               Refresh advice
@@ -281,7 +282,7 @@ const ContextWall = ({ docs, onAdd, onDelete }) => {
         <BookOpen size={16} className="text-emerald-600 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-gray-800">Context Wall</span>
-          <span className="ml-2 text-xs text-gray-400">
+          <span className="ml-2 text-xs text-gray-500">
             {docs.length} document{docs.length !== 1 ? 's' : ''} · injected automatically into every analysis
           </span>
         </div>
@@ -478,7 +479,7 @@ const ReplyQueue = () => {
           <Inbox size={18} className="text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Reply Queue</h1>
+          <EditableText id="title-reply-queue" defaultText="Reply Queue" tag="h1" className="text-xl font-bold text-gray-900" />
           <p className="text-sm text-gray-500">
             Paste a message → AI extracts action, urgency &amp; deadline → syncs to Tasks, Calendar &amp; Quick To-Do
           </p>
@@ -542,7 +543,7 @@ const ReplyQueue = () => {
         <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
           {inputText.trim() && (
             <button onClick={() => { setInputText(''); setDraft(null); setDraftError(''); }}
-              className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+              className="text-xs text-gray-500 hover:text-gray-600 flex items-center gap-1">
               <X size={12} /> Clear
             </button>
           )}
@@ -673,7 +674,7 @@ const ReplyQueue = () => {
           </div>
 
           {filtered.length === 0 ? (
-            <div className="text-center py-8 text-sm text-gray-400">
+            <div className="text-center py-8 text-sm text-gray-500">
               No {filter === 'replied' ? 'replied' : 'pending'} items
             </div>
           ) : (

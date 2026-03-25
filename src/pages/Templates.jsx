@@ -7,6 +7,7 @@ import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import TemplateLibrary from '../components/templates/TemplateLibrary';
 import { Plus, FileText, Edit, Trash2, Library } from 'lucide-react';
+import EditableText from '../components/editmode/EditableText';
 
 const Templates = () => {
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useApp();
@@ -64,7 +65,7 @@ const Templates = () => {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Templates</h1>
+          <EditableText id="title-templates" defaultText="Templates" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
           <p className="text-gray-600">Manage your document templates</p>
         </div>
         <div className="flex gap-3">

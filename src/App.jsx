@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { EditModeProvider } from './context/EditModeContext';
 import Layout from './components/common/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import EditModePanel from './components/editmode/EditModePanel';
 
 const Dashboard           = lazy(() => import('./pages/Dashboard'));
 const Templates           = lazy(() => import('./pages/Templates'));
@@ -35,11 +37,12 @@ function App() {
   return (
     <Router>
       <ErrorBoundary>
-        <AppProvider>
-          <Layout>
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
+        <EditModeProvider>
+          <AppProvider>
+            <Layout>
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
                   <Route path="/"                element={<Dashboard />} />
                   <Route path="/grants"          element={<Grants />} />
                   <Route path="/budget"          element={<Budget />} />
@@ -60,11 +63,13 @@ function App() {
                   <Route path="/drive"           element={<Drive />} />
                   <Route path="/links"           element={<Links />} />
                   <Route path="/settings"        element={<Settings />} />
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
-          </Layout>
-        </AppProvider>
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
+            </Layout>
+            <EditModePanel />
+          </AppProvider>
+        </EditModeProvider>
       </ErrorBoundary>
     </Router>
   );

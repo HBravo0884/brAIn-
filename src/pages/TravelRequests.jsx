@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import EditableText from '../components/editmode/EditableText';
 import {
   Plane, Plus, X, Edit2, Trash2, Download, FileText,
   CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp,
@@ -163,7 +164,7 @@ const TravelRequests = () => {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Travel Requests</h1>
+          <EditableText id="title-travel" defaultText="Travel Requests" tag="h1" className="text-3xl font-bold text-gray-900" />
           <p className="text-gray-600 mt-1">4-phase SOP tracker for student and staff travel authorization</p>
         </div>
         <button

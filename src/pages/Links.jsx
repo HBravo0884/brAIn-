@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink, Plus, Pencil, Trash2, X, Check, GripVertical } from 'lucide-react';
+import EditableText from '../components/editmode/EditableText';
 
 const STORAGE_KEY = 'brain_quick_links';
 
@@ -285,7 +286,7 @@ export default function Links() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Quick Links</h1>
+          <EditableText id="title-links" defaultText="Quick Links" tag="h1" className="text-xl font-bold text-gray-900 dark:text-gray-100" />
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {links.filter(l => !l.hidden).length} active links across {visibleCategories.length} categories
           </p>

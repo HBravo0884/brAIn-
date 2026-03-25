@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { expandObligations } from '../data/obligations';
+import EditableText from '../components/editmode/EditableText';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 const EVENT_TYPES = {
@@ -271,7 +272,7 @@ const CalendarView = () => {
         {/* All-day strip */}
         {hasAllDay && (
           <div className="grid flex-shrink-0 border-b border-gray-200" style={{ gridTemplateColumns: tpl }}>
-            <div className="px-1 py-2 text-right text-xs text-gray-400 border-r border-gray-100 leading-none self-center">
+            <div className="px-1 py-2 text-right text-xs text-gray-500 border-r border-gray-100 leading-none self-center">
               all<br />day
             </div>
             {dates.map(d => (
@@ -293,7 +294,7 @@ const CalendarView = () => {
               {/* Time label */}
               <div className="px-2 border-r border-gray-100 relative flex-shrink-0" style={{ minHeight: ROW_H }}>
                 {m === 0 && (
-                  <span className="absolute -top-2.5 right-2 text-xs text-gray-400 bg-white px-0.5 whitespace-nowrap">
+                  <span className="absolute -top-2.5 right-2 text-xs text-gray-500 bg-white px-0.5 whitespace-nowrap">
                     {label}
                   </span>
                 )}
@@ -384,7 +385,7 @@ const CalendarView = () => {
                             );
                           })}
                           {events.length > 3 && (
-                            <div className="text-xs text-gray-400 pl-1">+{events.length - 3} more</div>
+                            <div className="text-xs text-gray-500 pl-1">+{events.length - 3} more</div>
                           )}
                         </div>
                       </>
@@ -473,7 +474,7 @@ const CalendarView = () => {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Calendar</h1>
+          <EditableText id="title-calendar" defaultText="Calendar" tag="h1" className="text-3xl font-bold text-gray-900 mb-1" />
           <p className="text-gray-600 text-sm">{periodLabel}</p>
         </div>
         <div className="flex items-center gap-2">

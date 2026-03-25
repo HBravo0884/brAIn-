@@ -27,6 +27,7 @@ import {
   MoreHorizontal,
   HardDrive,
   Link2,
+  PenLine,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { storage } from '../../utils/storage';
@@ -39,6 +40,7 @@ import DataSyncModal from './DataSyncModal';
 import ConflictsPanel from './ConflictsPanel';
 import CaptureBar from './CaptureBar';
 import { useApp } from '../../context/AppContext';
+import { useEditMode } from '../../context/EditModeContext';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -83,6 +85,7 @@ const Layout = ({ children }) => {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const { isEditMode, setIsEditMode } = useEditMode();
   const unresolvedConflicts = conflicts.filter(c => !c.resolved).length;
   const pendingReplies = replyQueue.filter(r => r.status !== 'replied').length;
 
@@ -103,28 +106,62 @@ const Layout = ({ children }) => {
     '/reply-queue': pendingReplies,
   };
 
-  const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard — Overview of all grants, open tasks, budget summary, and recent activity' },
-    { path: '/tasks', icon: Rocket, label: 'Tasks', tooltip: 'Grant Tasks — Start a task workflow, load associated forms, and auto-fill PI, grant, and date fields' },
-    { path: '/grants', icon: Award, label: 'Grants', tooltip: 'Grants — Manage your grant portfolio: status, deliverables, reporting deadlines, and contacts' },
-    { path: '/budget', icon: DollarSign, label: 'Budget', tooltip: 'Budget — Track spending against award budgets, log expenses, and import award letters' },
-    { path: '/documents', icon: FolderOpen, label: 'Documents', tooltip: 'Documents — Store and organize grant documents, reports, and files' },
-    { path: '/workflows', icon: Workflow, label: 'Kanban', tooltip: 'Kanban — Manage tasks on a drag-and-drop board: To Do, In Progress, Done' },
-    { path: '/calendar', icon: CalendarRange, label: 'Calendar', tooltip: 'Calendar — Month view of all meetings, task deadlines, aim target dates, and grant end dates' },
-    { path: '/meetings', icon: CalendarDays, label: 'Meetings', tooltip: 'Meetings — Log meeting notes, attendees, agendas, transcriptions, and action items per grant' },
-    { path: '/personnel', icon: Users, label: 'Personnel', tooltip: 'Personnel — Organizational directory: team members, collaborators, and program officers with contact info and grant links' },
-    { path: '/payment-requests', icon: CreditCard, label: 'Payments', tooltip: 'Payment Requests — Create and track payment request forms (PRFs) linked to grant budgets' },
-    { path: '/travel-requests', icon: Plane, label: 'Travel', tooltip: 'Travel Requests — 4-phase SOP tracker: Application → Spend Auth → CBT Booking → Post-Travel expense report' },
-    { path: '/gift-cards', icon: Gift, label: 'Gift Cards', tooltip: 'Gift Card Distributions — Log and track Aim 5 participant support gift cards for compliance. Always use "Participant Support Costs" spend category.' },
-    { path: '/templates', icon: FileText, label: 'Templates', tooltip: 'Templates — Build and reuse document templates for grant applications, reports, and payment requests' },
-    { path: '/quick-todo', icon: ListTodo, label: 'Personal To-Do', tooltip: 'Personal checklist — Quick captures that don\'t need a full grant task card' },
-    { path: '/reply-queue', icon: Inbox, label: 'Reply Queue', tooltip: 'Reply Queue — Paste emails or messages and let the AI tell you what to do, what info to gather, and when to reply. Syncs to Tasks, Calendar, and Quick To-Do.' },
-    { path: '/studio', icon: Music2, label: 'Studio', tooltip: 'Studio — Manage your piano students at Expressions Music Academy: roster, schedule, lesson logs, and AI-generated progress reports.' },
-    { path: '/knowledge', icon: BookMarked, label: 'Knowledge', tooltip: 'Knowledge Base — Upload policies, SOPs, and email threads so the AI assistant can reference them' },
-    { path: '/drive', icon: HardDrive, label: 'Drive', tooltip: 'Google Drive — Manage your structured folder architecture and upload grant documents, receipts, and research files' },
-    { path: '/links', icon: Link2, label: 'Quick Links', tooltip: 'Quick Links — Fast access to Workday, BisonHub, PaymentNet, AI tools, and all your external resources' },
-    { path: '/settings', icon: SettingsIcon, label: 'Settings', tooltip: 'Settings — Configure your API key, app preferences, and backup/restore your data' },
+  // Nav items grouped into logical sections (IBM Carbon "flat architecture")
+  const navGroups = [
+    {
+      label: 'Overview',
+      items: [
+        { path: '/',       icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard — Overview of all grants, open tasks, budget summary, and recent activity' },
+        { path: '/tasks',  icon: Rocket,          label: 'Tasks',     tooltip: 'Grant Tasks — Start a task workflow, load associated forms, and auto-fill PI, grant, and date fields' },
+      ],
+    },
+    {
+      label: 'Grant Work',
+      items: [
+        { path: '/grants',    icon: Award,     label: 'Grants',    tooltip: 'Grants — Manage your grant portfolio: status, deliverables, reporting deadlines, and contacts' },
+        { path: '/budget',    icon: DollarSign,label: 'Budget',    tooltip: 'Budget — Track spending against award budgets, log expenses, and import award letters' },
+        { path: '/documents', icon: FolderOpen,label: 'Documents', tooltip: 'Documents — Store and organize grant documents, reports, and files' },
+        { path: '/workflows', icon: Workflow,  label: 'Kanban',    tooltip: 'Kanban — Manage tasks on a drag-and-drop board: To Do, In Progress, Done' },
+      ],
+    },
+    {
+      label: 'Team & Schedule',
+      items: [
+        { path: '/calendar',  icon: CalendarRange, label: 'Calendar',  tooltip: 'Calendar — Month view of all meetings, task deadlines, aim target dates, and grant end dates' },
+        { path: '/meetings',  icon: CalendarDays,  label: 'Meetings',  tooltip: 'Meetings — Log meeting notes, attendees, agendas, transcriptions, and action items per grant' },
+        { path: '/personnel', icon: Users,         label: 'Personnel', tooltip: 'Personnel — Organizational directory: team members, collaborators, and program officers with contact info and grant links' },
+      ],
+    },
+    {
+      label: 'Finance',
+      items: [
+        { path: '/payment-requests', icon: CreditCard, label: 'Payments',   tooltip: 'Payment Requests — Create and track payment request forms (PRFs) linked to grant budgets' },
+        { path: '/travel-requests',  icon: Plane,      label: 'Travel',     tooltip: 'Travel Requests — 4-phase SOP tracker: Application → Spend Auth → CBT Booking → Post-Travel' },
+        { path: '/gift-cards',       icon: Gift,       label: 'Gift Cards', tooltip: 'Gift Card Distributions — Log and track Aim 5 participant support gift cards for compliance.' },
+      ],
+    },
+    {
+      label: 'Tools',
+      items: [
+        { path: '/templates',   icon: FileText,   label: 'Templates',    tooltip: 'Templates — Build and reuse document templates for grant applications, reports, and payment requests' },
+        { path: '/quick-todo',  icon: ListTodo,   label: 'To-Do',        tooltip: 'Personal checklist — Quick captures that don\'t need a full grant task card' },
+        { path: '/reply-queue', icon: Inbox,      label: 'Reply Queue',  tooltip: 'Reply Queue — Paste emails or messages and let the AI tell you what to do, what info to gather, and when to reply.' },
+        { path: '/knowledge',   icon: BookMarked, label: 'Knowledge',    tooltip: 'Knowledge Base — Upload policies, SOPs, and email threads so the AI assistant can reference them' },
+        { path: '/drive',       icon: HardDrive,  label: 'Drive',        tooltip: 'Google Drive — Manage your structured folder architecture and upload grant documents' },
+        { path: '/links',       icon: Link2,      label: 'Quick Links',  tooltip: 'Quick Links — Fast access to Workday, BisonHub, PaymentNet, AI tools, and all your external resources' },
+      ],
+    },
+    {
+      label: 'Other',
+      items: [
+        { path: '/studio',   icon: Music2,       label: 'Studio',   tooltip: 'Studio — Manage your piano students at Expressions Music Academy: roster, schedule, lesson logs, and AI-generated progress reports.' },
+        { path: '/settings', icon: SettingsIcon, label: 'Settings', tooltip: 'Settings — Configure your API key, app preferences, and backup/restore your data' },
+      ],
+    },
   ];
+
+  // Flat list for mobile more-drawer and bottom nav lookup
+  const navItems = navGroups.flatMap(g => g.items);
 
   // Bottom nav items shown on mobile (5 items + More)
   const bottomNavItems = [
@@ -136,150 +173,228 @@ const Layout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar — hidden on mobile, always-icon on tablet, full on desktop */}
+      {/* Sidebar — hidden on mobile, icon-only on tablet, full on desktop */}
       <aside
         className={`${
           isMobile ? 'hidden' : 'flex'
         } ${
-          effectiveSidebarOpen ? 'w-60' : 'w-16'
-        } bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-sm transition-all duration-300 flex-col flex-shrink-0`}
+          effectiveSidebarOpen ? 'w-[232px]' : 'w-[60px]'
+        } bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 flex-col flex-shrink-0`}
+        style={{ boxShadow: '1px 0 0 0 #f1f5f9' }}
       >
-        {/* Logo */}
-        <div className={`flex items-center border-b border-gray-200 dark:border-gray-700 ${effectiveSidebarOpen ? 'px-4 py-4 gap-3' : 'px-0 py-4 justify-center'}`}>
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">bA</span>
+        {/* ── Logo / Brand ── */}
+        <div className={`flex items-center border-b border-gray-100 dark:border-gray-800 ${effectiveSidebarOpen ? 'px-4 py-3.5 gap-3' : 'px-0 py-3.5 justify-center'}`}>
+          {/* Logomark — teal square with cyan dot accent */}
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 relative"
+            style={{ background: 'linear-gradient(135deg, #097c87 0%, #12a8b4 100%)' }}
+          >
+            <span className="text-white text-xs font-black tracking-tight">bA</span>
+            {/* Cyan accent dot */}
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 border-2 border-white" />
           </div>
           {effectiveSidebarOpen && (
             <div className="flex-1 flex items-center justify-between min-w-0">
-              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">brAIn</h1>
+              <div>
+                <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">brAIn</h1>
+                <p className="text-[10px] text-gray-400 font-medium mt-0.5 leading-none">RWJF Program Hub</p>
+              </div>
               <button
                 onClick={() => setSidebarOpen(false)}
                 title="Collapse sidebar"
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-400 hover:text-gray-600"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
           )}
         </div>
 
-        {/* Expand button when collapsed (desktop only — tablet is always collapsed) */}
+        {/* Expand button when collapsed (desktop only) */}
         {!effectiveSidebarOpen && !isTablet && (
           <button
             onClick={() => setSidebarOpen(true)}
             title="Expand sidebar"
-            className="mx-auto mt-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="mx-auto mt-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-400 hover:text-gray-600"
           >
-            <Menu size={16} />
+            <Menu size={15} />
           </button>
         )}
 
-        {/* Navigation */}
-        <nav className="flex-1 px-2 py-3 overflow-y-auto">
-          <ul className="space-y-0.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+        {/* ── Navigation — grouped sections ── */}
+        <nav className="flex-1 px-2 py-2 overflow-y-auto">
+          {navGroups.map((group, gi) => (
+            <div key={group.label} className={gi > 0 ? 'mt-1' : ''}>
+              {/* Section label — only when sidebar is expanded */}
+              {effectiveSidebarOpen && (
+                <p className="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest select-none">
+                  {group.label}
+                </p>
+              )}
+              {/* Divider when collapsed */}
+              {!effectiveSidebarOpen && gi > 0 && (
+                <div className="mx-3 my-1.5 border-t border-gray-100 dark:border-gray-800" />
+              )}
+              <ul className="space-y-px">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
 
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    title={item.tooltip}
-                    className={`flex items-center gap-3 rounded-lg transition-colors ${
-                      effectiveSidebarOpen ? 'px-3 py-2' : 'px-0 py-2 justify-center'
-                    } ${
-                      isActive
-                        ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
-                    }`}
-                  >
-                    <span className="relative flex-shrink-0">
-                      <Icon size={18} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
-                      {navBadges[item.path] > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                          {navBadges[item.path] > 99 ? '99+' : navBadges[item.path]}
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        title={item.tooltip}
+                        className={[
+                          'flex items-center gap-2.5 rounded-lg transition-colors duration-100',
+                          effectiveSidebarOpen ? 'px-3 py-2' : 'px-0 py-2 justify-center',
+                          isActive
+                            ? 'bg-primary-50 dark:bg-primary-900/25 text-primary-700 dark:text-primary-300'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                        ].join(' ')}
+                      >
+                        {/* Icon with optional left accent bar for active */}
+                        <span className="relative flex-shrink-0 flex items-center justify-center">
+                          <Icon
+                            size={16}
+                            className={isActive ? 'text-primary-600 dark:text-primary-400' : ''}
+                          />
+                          {navBadges[item.path] > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                              {navBadges[item.path] > 99 ? '99+' : navBadges[item.path]}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    {effectiveSidebarOpen && (
-                      <span className={`text-sm flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                        {effectiveSidebarOpen && (
+                          <span className={`text-[13px] flex-1 leading-none ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                            {item.label}
+                          </span>
+                        )}
+                        {/* Active indicator dot (expanded) */}
+                        {effectiveSidebarOpen && isActive && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* Footer */}
         {effectiveSidebarOpen && (
-          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-400 text-center">v1.0</p>
+          <div className="border-t border-gray-100 dark:border-gray-800">
+            {/* Howard Horizon decorative art panel */}
+            <div className="relative overflow-hidden mx-3 mt-3 rounded-xl" style={{ height: '72px' }}>
+              <img
+                src="/Howard%20horizon%20.png"
+                alt="Howard University"
+                className="absolute inset-0 w-full h-full object-cover object-center"
+                style={{ filter: 'brightness(0.6) saturate(1.1)' }}
+              />
+              {/* gradient overlay: left dark → transparent */}
+              <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 via-gray-900/30 to-transparent" />
+              <div className="relative flex flex-col justify-end px-3 pb-2.5 h-full">
+                <p className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none">Howard University</p>
+                <p className="text-[8px] text-white/70 font-medium leading-tight mt-0.5">College of Medicine</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <p className="text-[10px] text-gray-500 font-medium">v1.0 · All data saved locally</p>
+            </div>
           </div>
         )}
       </aside>
 
       {/* Main Content */}
       <main className={`flex-1 overflow-auto flex flex-col min-w-0 ${isMobile ? 'pb-16' : ''}`}>
-        {/* Top Header */}
-        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3 sticky top-0 z-40">
+        {/* ── Top Header — clean, minimal, palette-consistent ── */}
+        <div
+          className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 md:px-5 py-2.5 sticky top-0 z-40"
+          style={{ boxShadow: '0 1px 0 0 #f1f5f9' }}
+        >
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <GlobalSearch />
             </div>
-            {/* Supabase sync status dot */}
+
+            {/* Sync status indicator */}
             {syncStatus !== 'idle' && (
               <span
-                title={syncStatus === 'syncing' ? 'Syncing to cloud…' : syncStatus === 'synced' ? 'Synced to cloud' : 'Sync error — changes saved locally'}
-                className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                title={syncStatus === 'syncing' ? 'Syncing…' : syncStatus === 'synced' ? 'Synced' : 'Sync error'}
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${
                   syncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
-                  syncStatus === 'synced'  ? 'bg-green-500' :
-                  'bg-red-500'
+                  syncStatus === 'synced'  ? 'bg-green-500' : 'bg-red-500'
                 }`}
               />
             )}
-            {/* Data Sync — icon only */}
+
+            {/* Icon toolbar — subtle, consistent sizing */}
+            <div className="flex items-center gap-1">
+              {/* Refresh / Sync */}
+              <button
+                onClick={() => setShowSync(true)}
+                title="Data Sync — Re-reads all data from storage and refreshes every view."
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-700 rounded-lg transition-colors"
+              >
+                <RefreshCw size={15} />
+              </button>
+
+              {/* Conflicts */}
+              <button
+                onClick={() => setShowConflicts(v => !v)}
+                title="Data Conflicts"
+                className={`relative p-2 rounded-lg transition-colors ${
+                  unresolvedConflicts > 0
+                    ? 'text-amber-500 hover:bg-amber-50'
+                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+                }`}
+              >
+                <AlertTriangle size={15} />
+                {unresolvedConflicts > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {unresolvedConflicts}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Edit Mode toggle */}
             <button
-              onClick={() => setShowSync(true)}
-              title="Data Sync — Re-reads all data from storage, refreshes every view, and cleans any orphaned cross-references."
-              className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg transition-colors touch-target"
-            >
-              <RefreshCw size={16} />
-            </button>
-            {/* Conflict alert */}
-            <button
-              onClick={() => setShowConflicts(v => !v)}
-              title="Data Conflicts — Review inconsistencies detected across sections"
-              className={`relative p-2 rounded-lg transition-colors touch-target ${
-                unresolvedConflicts > 0
-                  ? 'bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 text-amber-600 dark:text-amber-400'
-                  : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500'
+              onClick={() => setIsEditMode(v => !v)}
+              title={isEditMode ? 'Exit Edit Mode' : 'Edit Mode — customize titles, colors & layout'}
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                isEditMode
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
               }`}
             >
-              <AlertTriangle size={16} />
-              {unresolvedConflicts > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {unresolvedConflicts}
-                </span>
-              )}
+              <PenLine size={13} />
+              {isEditMode ? 'Editing…' : 'Edit Page'}
             </button>
-            {/* Briefing OUT → NotebookLM — hidden on mobile to save space */}
+
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-5 bg-gray-200" />
+
+            {/* Action buttons — teal primary + sage secondary palette */}
             <button
               onClick={() => setShowBriefing(true)}
-              title="Briefing — Exports a full snapshot of your grants, tasks, and budget as a readable document. Copy it into NotebookLM so the AI can answer questions about your program."
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+              title="Briefing — Exports a full snapshot of your grants, tasks, and budget."
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
             >
-              <ClipboardList size={15} />
+              <ClipboardList size={13} />
               Briefing
             </button>
-            {/* NbLM IN → brAIn — hidden on mobile */}
+
             <button
               onClick={() => setShowNbLMImport(true)}
-              title="NbLM Import — Paste the AI response from NotebookLM here. brAIn will read it and propose updates to your tasks, grants, and knowledge base for you to review and approve."
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+              title="NbLM Import — Paste the AI response from NotebookLM here."
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
             >
-              <FileInput size={15} />
+              <FileInput size={13} />
               NbLM Import
             </button>
           </div>
@@ -316,7 +431,7 @@ const Layout = ({ children }) => {
         )}
 
         {/* Page Content */}
-        <div className="flex-1 p-4 md:p-6">
+        <div className="flex-1" style={{ padding: 'var(--page-padding, 24px)' }}>
           {children}
         </div>
       </main>

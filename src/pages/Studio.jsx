@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useStudio } from '../context/StudioContext';
 import { parseRosterUpdate, generateLessonReport } from '../utils/ai';
+import EditableText from '../components/editmode/EditableText';
 import {
   Music2, Users, Calendar, CalendarCheck, Wand2, Loader2, Check, X, ChevronDown, ChevronUp,
   Edit3, Plus, Clock, MapPin, Star, Zap, Target, Brain, BookOpen, Swords,
@@ -377,7 +378,7 @@ export default function Studio() {
           <div className="flex items-center gap-3">
             <div className="p-2 bg-violet-100 rounded-xl"><Music2 className="w-6 h-6 text-violet-600" /></div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Studio</h1>
+              <EditableText id="title-studio" defaultText="Studio" tag="h1" className="text-2xl font-bold text-gray-900" />
               <p className="text-sm text-gray-500">Expressions Music Academy</p>
             </div>
           </div>

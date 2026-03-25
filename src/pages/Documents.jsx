@@ -7,6 +7,7 @@ import FileUploader from '../components/documents/FileUploader';
 import DocumentFormatter from '../components/documents/DocumentFormatter';
 import { Plus, FileText, Download, Trash2, Eye, Upload, Star, Copy, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
+import EditableText from '../components/editmode/EditableText';
 
 const Documents = () => {
   const { documents, deleteDocument, updateDocument, addDocument, grants } = useApp();
@@ -63,7 +64,7 @@ const Documents = () => {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Documents</h1>
+          <EditableText id="title-documents" defaultText="Documents" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
           <p className="text-gray-600">Manage your project documents and templates</p>
         </div>
         <Button

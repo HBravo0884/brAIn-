@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import EditableText from '../components/editmode/EditableText';
 import {
   Gift, Plus, X, Edit2, Trash2, Download, Search,
   AlertCircle, CheckCircle, DollarSign,
@@ -120,7 +121,7 @@ const GiftCardDistributions = () => {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gift Card Distributions</h1>
+          <EditableText id="title-giftcards" defaultText="Gift Card Distributions" tag="h1" className="text-3xl font-bold text-gray-900" />
           <p className="text-gray-600 mt-1">Aim 5 participant support — log, track, and export for compliance</p>
         </div>
         <div className="flex gap-2">
@@ -227,11 +228,11 @@ const GiftCardDistributions = () => {
                   <tr key={rec.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => openModal(rec, true)}>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{rec.recipientName}</div>
-                      {rec.recipientId && <div className="text-xs text-gray-400">{rec.recipientId}</div>}
+                      {rec.recipientId && <div className="text-xs text-gray-500">{rec.recipientId}</div>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       <div>{rec.aim}</div>
-                      <div className="text-xs text-gray-400">{rec.purpose}</div>
+                      <div className="text-xs text-gray-500">{rec.purpose}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{rec.cardType}</td>
                     <td className="px-4 py-3 font-semibold text-gray-900">
@@ -283,7 +284,7 @@ const GiftCardDistributions = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{formData.recipientName}</h3>
-                      {formData.recipientId && <p className="text-sm text-gray-400 font-mono">{formData.recipientId}</p>}
+                      {formData.recipientId && <p className="text-sm text-gray-500 font-mono">{formData.recipientId}</p>}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setViewMode(false)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">

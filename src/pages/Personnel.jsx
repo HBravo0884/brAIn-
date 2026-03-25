@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Users, Plus, X, Edit2, Trash2, Mail, Phone, Building2, Briefcase, Search, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import EditableText from '../components/editmode/EditableText';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const TYPES = [
@@ -127,7 +128,7 @@ const Personnel = () => {
       {/* Header */}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Personnel</h1>
+          <EditableText id="title-personnel" defaultText="Personnel" tag="h1" className="text-3xl font-bold text-gray-900 mb-1" />
           <p className="text-gray-600">Organizational directory — click any person to see their full profile</p>
         </div>
         <button
@@ -575,7 +576,7 @@ const DetailPanel = ({ person, grants, meetings, onEdit, onDelete, onClose, navi
                 </button>
               ))}
               {meetings.length > 6 && (
-                <p className="text-xs text-gray-400 pl-2">+{meetings.length - 6} more</p>
+                <p className="text-xs text-gray-500 pl-2">+{meetings.length - 6} more</p>
               )}
             </div>
           </div>
@@ -590,7 +591,7 @@ const DetailPanel = ({ person, grants, meetings, onEdit, onDelete, onClose, navi
         )}
 
         {/* Timestamps */}
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           Added {fmt(person.createdAt)}
           {person.updatedAt !== person.createdAt && ` · Updated ${fmt(person.updatedAt)}`}
         </p>

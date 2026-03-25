@@ -1,65 +1,243 @@
+/* ── Google Fonts: Inter ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* {
+/* ────────────────────────────────────────────────
+   CSS DESIGN TOKENS  (IBM Carbon / Swiss Style)
+   8-px grid, limited palette, clear type scale
+   ──────────────────────────────────────────────── */
+:root {
+  --space-unit: 0.5rem;            /* 8 px */
+
+  /* Edit Mode runtime tokens — overridden by EditModeContext */
+  --font-base:    15px;
+  --page-padding: 24px;
+
+  /* Brand */
+  --color-primary:       #097c87;
+  --color-primary-light: #23ced9;
+  --color-accent-yellow: #f9d779;
+  --color-accent-sage:   #a1cca6;
+  --color-accent-salmon: #fca47c;
+
+  /* Neutrals */
+  --color-surface:       #f8fafc;
+  --color-border:        #e2e8f0;
+  --color-text:          #1e293b;
+  --color-text-muted:    #64748b;
+
+  /* Component radii */
+  --radius-sm:   0.375rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+
+  /* Shadows (layered, IBM-style) */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-hover: 0 4px 12px -2px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-modal: 0 20px 40px -8px rgb(0 0 0 / 0.18), 0 8px 16px -4px rgb(0 0 0 / 0.08);
+
+  /* Focus ring — WCAG 2.1 AA */
+  --ring: 0 0 0 3px rgb(9 124 135 / 0.22);
+}
+
+/* ── BASE RESET ── */
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
-  color: #1e293b;
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ── TYPOGRAPHY HIERARCHY (Swiss Style ratio ≈ 1.25) ── */
+h1 { font-size: 1.75rem;  font-weight: 700; line-height: 1.25; letter-spacing: -0.025em; }
+h2 { font-size: 1.375rem; font-weight: 700; line-height: 1.3;  letter-spacing: -0.02em;  }
+h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.35; }
+h4 { font-size: 1rem;     font-weight: 600; line-height: 1.4;  }
+h5 { font-size: 0.875rem; font-weight: 600; }
+h6 { font-size: 0.8125rem;font-weight: 600; }
+
+/* ── FOCUS RINGS (WCAG 2.1 AA) ── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-md);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ────────────────────────────────────────────────
+   COMPONENT LAYER
+   ──────────────────────────────────────────────── */
 @layer components {
+
+  /* ── Buttons — no scale-on-hover (not enterprise-appropriate) ── */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform active:scale-95 hover:scale-105 shadow-md;
+    @apply inline-flex items-center justify-center gap-2
+           bg-primary-600 hover:bg-primary-700 active:bg-primary-800
+           text-white text-sm font-semibold
+           px-4 py-2 rounded-lg
+           shadow-sm
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed
+           focus-visible:outline-none;
+    &:focus-visible { box-shadow: var(--ring); }
   }
 
   .btn-secondary {
-    @apply bg-surface-100 hover:bg-surface-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all transform active:scale-95 hover:scale-105 border border-surface-300;
+    @apply inline-flex items-center justify-center gap-2
+           bg-white hover:bg-gray-50 active:bg-gray-100
+           text-gray-700 text-sm font-semibold
+           border border-gray-200 hover:border-gray-300
+           px-4 py-2 rounded-lg
+           shadow-sm
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed
+           focus-visible:outline-none;
+    &:focus-visible { box-shadow: var(--ring); }
   }
 
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform active:scale-95 hover:scale-105 shadow-md;
+    @apply inline-flex items-center justify-center gap-2
+           bg-red-600 hover:bg-red-700 active:bg-red-800
+           text-white text-sm font-semibold
+           px-4 py-2 rounded-lg
+           shadow-sm
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed
+           focus-visible:outline-none;
   }
 
+  /* ── Cards (IBM Carbon "card" token) ── */
   .card {
-    @apply rounded-xl shadow-sm bg-white p-6 border border-surface-300;
+    @apply rounded-xl bg-white border border-gray-200 p-6;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 180ms ease-out;
   }
 
+  /* ── Form inputs ── */
   .input {
-    @apply w-full px-4 py-2 border border-surface-300 rounded-lg focus:ring-2 focus:ring-primary-400 focus:border-transparent outline-none transition-all bg-white;
+    @apply w-full px-3 py-2
+           text-sm text-gray-900 placeholder:text-gray-400
+           bg-white
+           border border-gray-300 rounded-lg
+           transition-all duration-150
+           outline-none
+           disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed;
+    &:hover:not(:disabled) { @apply border-gray-400; }
+    &:focus {
+      @apply border-primary-500;
+      box-shadow: var(--ring);
+    }
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-600 mb-2;
+    @apply block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5;
   }
+
+  /* ── Section nav label (sidebar groups) ── */
+  .nav-section-label {
+    @apply px-3 mb-1 mt-4 first:mt-0
+           text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest
+           select-none;
+  }
+
+  /* ── Page layout helpers ── */
+  .page-header {
+    @apply mb-6 flex items-start justify-between gap-4;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold text-gray-900 tracking-tight leading-tight;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-gray-500 mt-0.5 font-normal;
+  }
+
+  /* ── Badge / status pill ── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full;
+  }
+
+  .badge-primary  { @apply badge bg-primary-100 text-primary-700; }
+  .badge-success  { @apply badge bg-green-100   text-green-700; }
+  .badge-warning  { @apply badge bg-yellow-100  text-yellow-700; }
+  .badge-danger   { @apply badge bg-red-100     text-red-700; }
+  .badge-neutral  { @apply badge bg-gray-100    text-gray-600; }
+
+  /* ── Table base ── */
+  .table-auto th {
+    @apply px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider
+           border-b border-gray-200 bg-gray-50/70;
+  }
+  .table-auto td {
+    @apply px-4 py-3 text-sm text-gray-700 border-b border-gray-100;
+  }
+  .table-auto tbody tr:last-child td { @apply border-b-0; }
+  .table-auto tbody tr:hover td { @apply bg-gray-50/60; }
 }
 
-/* Touch targets — 44px minimum for accessibility */
+/* ── TOUCH TARGETS (WCAG 2.5.8) ── */
 .touch-target {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 2.75rem;  /* 44 px */
+  min-width:  2.75rem;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ── SCROLLBAR (on-brand, subtle) ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+/* ── ANIMATIONS (functional motion — IBM Carbon) ── */
+@keyframes fadeIn    { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideIn   { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+@keyframes scaleIn   { from { opacity:0; transform:scale(0.97); } to { opacity:1; transform:scale(1); } }
+@keyframes shimmer   { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+
+.animate-fade-in  { animation: fadeIn  180ms ease-out both; }
+.animate-slide-in { animation: slideIn 220ms ease-out both; }
+.animate-scale-in { animation: scaleIn 160ms ease-out both; }
+
+.stagger-1 { animation-delay:  40ms; }
+.stagger-2 { animation-delay:  80ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 160ms; }
+
+/* Skeleton shimmer for loading states */
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite ease-in-out;
+  border-radius: var(--radius-md);
 }
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #097c87;
+
+/* ── PRINT ── */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; font-size: 11pt; }
+  .card { box-shadow: none; border: 1px solid #ddd; }
 }

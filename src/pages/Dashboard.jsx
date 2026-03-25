@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import EditableText from '../components/editmode/EditableText';
 import { generateDailyPriorities } from '../utils/ai';
 import {
   DollarSign,
@@ -392,16 +393,34 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">Program Manager Hub</h1>
-          <p className="text-gray-600 dark:text-gray-400">Everything at a glance • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+      {/* ── Hero Banner ── */}
+      <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '180px' }}>
+        {/* Desk Corner art — right side */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/Desk%20Corner.png')", filter: 'brightness(0.45)' }}
+        />
+        {/* Gradient overlay — fades art left→right so text is legible */}
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/95 via-gray-900/70 to-transparent" />
+
+        {/* Content */}
+        <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-4 px-7 py-6">
+          <div>
+            {/* HUCM Seal — tiny institutional badge */}
+            <div className="flex items-center gap-2 mb-3">
+              <img src="/HUCM%20Seal%20LIght%20Snake%20W%20BG.png" alt="HUCM" className="w-7 h-7 rounded-full opacity-90" />
+              <span className="text-xs font-semibold text-white/80 uppercase tracking-widest">Howard University · College of Medicine</span>
+            </div>
+            <EditableText id="title-dashboard" defaultText="brAIn Dashboard" tag="h1" dark={true} className="text-3xl md:text-4xl font-black text-white tracking-tight leading-none" />
+            <p className="text-white/75 text-sm mt-1.5 font-medium">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · RWJF Grant GRT000937
+            </p>
+          </div>
+          <Button variant="secondary" onClick={importExpenseAuthorizations} className="flex-shrink-0 bg-white/10 hover:bg-white/20 border-white/20 text-white text-sm">
+            <Upload size={14} />
+            Import Authorizations
+          </Button>
         </div>
-        <Button variant="primary" onClick={importExpenseAuthorizations}>
-          <Upload size={16} className="mr-2" />
-          Import Expense Authorizations
-        </Button>
       </div>
 
       {/* Today Panel — AI daily priorities */}
@@ -409,7 +428,7 @@ const Dashboard = () => {
         <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border-b border-gray-200 dark:border-gray-700">
           <Zap size={15} className="text-primary-600 dark:text-primary-400" />
           <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Today's Focus</span>
-          <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">AI-generated daily priorities</span>
+          <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">AI-generated daily priorities</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-gray-800">
           {/* Urgent */}
@@ -423,9 +442,9 @@ const Dashboard = () => {
                 {[1,2,3].map(i => <div key={i} className="h-3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${60 + i * 10}%` }} />)}
               </div>
             ) : prioritiesError || !priorities ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Could not load priorities</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">Could not load priorities</p>
             ) : priorities.urgent.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Nothing urgent — great work!</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">Nothing urgent — great work!</p>
             ) : (
               <ul className="space-y-1.5">
                 {priorities.urgent.map((item, i) => (
@@ -449,9 +468,9 @@ const Dashboard = () => {
                 {[1,2,3].map(i => <div key={i} className="h-3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${70 + i * 5}%` }} />)}
               </div>
             ) : prioritiesError || !priorities ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Could not load priorities</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">Could not load priorities</p>
             ) : priorities.thisWeek.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Clear week ahead!</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">Clear week ahead!</p>
             ) : (
               <ul className="space-y-1.5">
                 {priorities.thisWeek.map((item, i) => (
@@ -475,9 +494,9 @@ const Dashboard = () => {
                 {[1,2].map(i => <div key={i} className="h-3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${65 + i * 10}%` }} />)}
               </div>
             ) : prioritiesError || !priorities ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Could not load</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">Could not load</p>
             ) : priorities.todaysMeetings.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic">No meetings today</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">No meetings today</p>
             ) : (
               <ul className="space-y-1.5">
                 {priorities.todaysMeetings.map((item, i) => (
@@ -693,7 +712,7 @@ const Dashboard = () => {
               </div>
               <p className="text-sm font-semibold text-gray-700 mb-1">Smart Auto-Detection</p>
               <p className="text-xs text-gray-500">Auto-detects SA#, receipts, PRFs</p>
-              <p className="text-xs text-gray-400 mt-1">Links documents to expenses automatically</p>
+              <p className="text-xs text-gray-500 mt-1">Links documents to expenses automatically</p>
             </div>
             {recentDocs.length > 0 && (
               <div className="mt-4 space-y-1">
@@ -702,7 +721,7 @@ const Dashboard = () => {
                   <div key={doc.id} className="flex items-center gap-2 text-sm py-2 px-3 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
                     <FileText size={14} className="text-gray-500 flex-shrink-0" />
                     <span className="flex-1 truncate text-gray-700 text-xs">{doc.name}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-500">
                       {new Date(doc.uploadedAt || doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
