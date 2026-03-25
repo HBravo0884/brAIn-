@@ -409,12 +409,12 @@ const Dashboard = () => {
             {/* HUCM Seal — tiny institutional badge */}
             <div className="flex items-center gap-2 mb-3">
               <img src="/HUCM%20Seal%20LIght%20Snake%20W%20BG.png" alt="HUCM" className="w-7 h-7 rounded-full opacity-90" />
-              <span className="text-xs font-semibold text-white/80 uppercase tracking-widest">Howard University · College of Medicine</span>
+              <EditableText id="dashboard-institution" defaultText="Howard University · College of Medicine" dark
+                tag="span" className="text-xs font-semibold text-white/80 uppercase tracking-widest" />
             </div>
             <EditableText id="title-dashboard" defaultText="brAIn Dashboard" tag="h1" dark={true} className="text-3xl md:text-4xl font-black text-white tracking-tight leading-none" />
-            <p className="text-white/75 text-sm mt-1.5 font-medium">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · RWJF Grant GRT000937
-            </p>
+            <EditableText id="dashboard-grant-label" defaultText="RWJF Program · Grant GRT000937" dark
+              tag="p" className="text-white/75 text-sm mt-1.5 font-medium" />
           </div>
           <Button variant="secondary" onClick={importExpenseAuthorizations} className="flex-shrink-0 bg-white/10 hover:bg-white/20 border-white/20 text-white text-sm">
             <Upload size={14} />

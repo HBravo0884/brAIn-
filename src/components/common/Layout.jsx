@@ -41,6 +41,7 @@ import ConflictsPanel from './ConflictsPanel';
 import CaptureBar from './CaptureBar';
 import { useApp } from '../../context/AppContext';
 import { useEditMode } from '../../context/EditModeContext';
+import EditableText from '../editmode/EditableText';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -196,8 +197,12 @@ const Layout = ({ children }) => {
           {effectiveSidebarOpen && (
             <div className="flex-1 flex items-center justify-between min-w-0">
               <div>
-                <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">brAIn</h1>
-                <p className="text-[10px] text-gray-400 font-medium mt-0.5 leading-none">RWJF Program Hub</p>
+                <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">
+                  <EditableText id="sidebar-app-name" defaultText="brAIn" />
+                </h1>
+                <p className="text-[10px] text-gray-400 font-medium mt-0.5 leading-none">
+                  <EditableText id="sidebar-app-subtitle" defaultText="RWJF Program Hub" />
+                </p>
               </div>
               <button
                 onClick={() => setSidebarOpen(false)}
@@ -228,7 +233,10 @@ const Layout = ({ children }) => {
               {/* Section label — only when sidebar is expanded */}
               {effectiveSidebarOpen && (
                 <p className="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest select-none">
-                  {group.label}
+                  <EditableText
+                    id={`nav-group-${group.label.toLowerCase().replace(/\s/g, '-')}`}
+                    defaultText={group.label}
+                  />
                 </p>
               )}
               {/* Divider when collapsed */}
@@ -267,7 +275,10 @@ const Layout = ({ children }) => {
                         </span>
                         {effectiveSidebarOpen && (
                           <span className={`text-[13px] flex-1 leading-none ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                            {item.label}
+                            <EditableText
+                              id={`nav-item-${item.path.replace(/\//g, '') || 'home'}`}
+                              defaultText={item.label}
+                            />
                           </span>
                         )}
                         {/* Active indicator dot (expanded) */}
@@ -297,13 +308,16 @@ const Layout = ({ children }) => {
               {/* gradient overlay: left dark → transparent */}
               <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 via-gray-900/30 to-transparent" />
               <div className="relative flex flex-col justify-end px-3 pb-2.5 h-full">
-                <p className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none">Howard University</p>
-                <p className="text-[8px] text-white/70 font-medium leading-tight mt-0.5">College of Medicine</p>
+                <EditableText id="sidebar-footer-school" defaultText="Howard University" dark tag="p"
+                  className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none" />
+                <EditableText id="sidebar-footer-dept" defaultText="College of Medicine" dark tag="p"
+                  className="text-[8px] text-white/70 font-medium leading-tight mt-0.5" />
               </div>
             </div>
             <div className="flex items-center gap-2 px-4 py-2.5">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <p className="text-[10px] text-gray-500 font-medium">v1.0 · All data saved locally</p>
+              <EditableText id="sidebar-version-note" defaultText="v1.0 · All data saved locally"
+                tag="p" className="text-[10px] text-gray-500 font-medium" />
             </div>
           </div>
         )}

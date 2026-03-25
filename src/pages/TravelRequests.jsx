@@ -165,7 +165,7 @@ const TravelRequests = () => {
       <div className="flex justify-between items-start">
         <div>
           <EditableText id="title-travel" defaultText="Travel Requests" tag="h1" className="text-3xl font-bold text-gray-900" />
-          <p className="text-gray-600 mt-1">4-phase SOP tracker for student and staff travel authorization</p>
+          <EditableText id="travel-subtitle" defaultText="4-phase SOP tracker for student and staff travel authorization" tag="p" className="text-gray-600 mt-1" />
         </div>
         <button
           onClick={() => openModal()}

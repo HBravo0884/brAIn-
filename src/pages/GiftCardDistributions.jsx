@@ -122,7 +122,7 @@ const GiftCardDistributions = () => {
       <div className="flex justify-between items-start">
         <div>
           <EditableText id="title-giftcards" defaultText="Gift Card Distributions" tag="h1" className="text-3xl font-bold text-gray-900" />
-          <p className="text-gray-600 mt-1">Aim 5 participant support — log, track, and export for compliance</p>
+          <EditableText id="giftcards-subtitle" defaultText="Aim 5 participant support — log, track, and export for compliance" tag="p" className="text-gray-600 mt-1" />
         </div>
         <div className="flex gap-2">
           <button

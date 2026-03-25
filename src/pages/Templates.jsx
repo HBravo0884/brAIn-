@@ -66,7 +66,7 @@ const Templates = () => {
       <div className="flex items-center justify-between mb-8">
         <div>
           <EditableText id="title-templates" defaultText="Templates" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
-          <p className="text-gray-600">Manage your document templates</p>
+          <EditableText id="templates-subtitle" defaultText="Manage your document templates" tag="p" className="text-gray-600" />
         </div>
         <div className="flex gap-3">
           <Button

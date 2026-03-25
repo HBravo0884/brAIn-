@@ -252,9 +252,11 @@ const Settings = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-r from-gray-900/90 via-gray-900/60 to-transparent" />
         <div className="relative px-7 py-6 flex flex-col justify-end h-full" style={{ minHeight: '140px' }}>
-          <p className="text-[10px] font-bold text-white/75 uppercase tracking-widest mb-2">brAIn · Configuration</p>
+          <EditableText id="settings-supertitle" defaultText="brAIn · Configuration" dark
+            tag="p" className="text-[10px] font-bold text-white/75 uppercase tracking-widest mb-2" />
           <EditableText id="title-settings" defaultText="Settings & Profile" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
-          <p className="text-white/75 text-sm mt-1.5 font-medium">Configure your default information for auto-filling forms</p>
+          <EditableText id="settings-subtitle" defaultText="Configure your default information for auto-filling forms" dark
+            tag="p" className="text-white/75 text-sm mt-1.5 font-medium" />
         </div>
       </div>
 

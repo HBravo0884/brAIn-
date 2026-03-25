@@ -35,7 +35,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Exclude fonts/ folder from precache (91 fonts = ~43MB — load on-demand instead)
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        globIgnores: ['fonts/**'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB — covers the art assets
         cleanupOutdatedCaches: true,
         skipWaiting: true,
@@ -45,6 +47,15 @@ export default defineConfig({
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
             handler: 'CacheFirst',
             options: { cacheName: 'google-fonts', expiration: { maxAgeSeconds: 60 * 60 * 24 * 365 } },
+          },
+          {
+            // Cache custom fonts on first use, serve from cache thereafter
+            urlPattern: /\/fonts\/.*\.ttf$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'custom-fonts',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
           },
         ],
       },

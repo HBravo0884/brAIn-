@@ -129,7 +129,8 @@ const Personnel = () => {
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <EditableText id="title-personnel" defaultText="Personnel" tag="h1" className="text-3xl font-bold text-gray-900 mb-1" />
-          <p className="text-gray-600">Organizational directory — click any person to see their full profile</p>
+          <EditableText id="personnel-subtitle" defaultText="Organizational directory — click any person to see their full profile"
+            tag="p" className="text-gray-600" />
         </div>
         <button
           onClick={openAdd}

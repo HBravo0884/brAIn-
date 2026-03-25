@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { loadFont, getFontByName } from '../data/fonts';
 
 const EditModeContext = createContext(null);
 const STORAGE_KEY = 'brain_visual_overrides';
@@ -72,6 +73,17 @@ function applyRootVar(prop, value) {
   document.documentElement.style.setProperty(prop, value);
 }
 
+/** Restore saved per-element font faces on page load */
+function restoreElementFonts(elementStyles) {
+  if (!elementStyles) return;
+  Object.values(elementStyles).forEach(style => {
+    if (style.fontFamily) {
+      const font = getFontByName(style.fontFamily);
+      if (font) loadFont(font.name, font.file);
+    }
+  });
+}
+
 export const EditModeProvider = ({ children }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [overrides, setOverrides] = useState(load);
@@ -82,8 +94,11 @@ export const EditModeProvider = ({ children }) => {
     if (styles['--color-primary']) injectColorTheme(styles['--color-primary']);
     if (styles['--font-base']) applyRootVar('--font-base', styles['--font-base']);
     if (styles['--page-padding']) applyRootVar('--page-padding', styles['--page-padding']);
+    // Restore custom font faces for elements
+    restoreElementFonts(overrides.elementStyles);
   }, []); // eslint-disable-line
 
+  // ── Text overrides ──────────────────────────────────────────────────────
   const getText = useCallback(
     (id, def) => overrides.texts?.[id] ?? def,
     [overrides.texts],
@@ -97,6 +112,7 @@ export const EditModeProvider = ({ children }) => {
     });
   }, []);
 
+  // ── Global style vars ───────────────────────────────────────────────────
   const setStyleVar = useCallback((prop, value) => {
     if (prop === '--color-primary') injectColorTheme(value);
     else applyRootVar(prop, value);
@@ -108,10 +124,53 @@ export const EditModeProvider = ({ children }) => {
     });
   }, []);
 
+  // ── Per-element styles ──────────────────────────────────────────────────
+  /**
+   * Returns the saved style object for an element, or empty object.
+   * Shape: { color?, fontFamily?, fontSize?, fontWeight? }
+   */
+  const getElementStyle = useCallback(
+    (id) => overrides.elementStyles?.[id] || {},
+    [overrides.elementStyles],
+  );
+
+  /**
+   * Merge-update a style property for an element.
+   * Pass null value to clear a property.
+   */
+  const setElementStyle = useCallback((id, stylePatch) => {
+    setOverrides(prev => {
+      const existing = prev.elementStyles?.[id] || {};
+      // Remove null/undefined entries (clearing a style)
+      const merged = { ...existing, ...stylePatch };
+      Object.keys(merged).forEach(k => {
+        if (merged[k] === null || merged[k] === undefined) delete merged[k];
+      });
+      const next = {
+        ...prev,
+        elementStyles: { ...(prev.elementStyles || {}), [id]: merged },
+      };
+      save(next);
+      return next;
+    });
+  }, []);
+
+  /** Clear all per-element style overrides for one element */
+  const resetElementStyle = useCallback((id) => {
+    setOverrides(prev => {
+      const elementStyles = { ...(prev.elementStyles || {}) };
+      delete elementStyles[id];
+      const next = { ...prev, elementStyles };
+      save(next);
+      return next;
+    });
+  }, []);
+
+  // ── Reset all ──────────────────────────────────────────────────────────
   const resetAll = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
-    // Remove injected style tag
     document.getElementById('brain-color-theme')?.remove();
+    document.getElementById('brain-custom-fonts')?.remove();
     document.documentElement.style.removeProperty('--font-base');
     document.documentElement.style.removeProperty('--page-padding');
     setOverrides({});
@@ -122,6 +181,7 @@ export const EditModeProvider = ({ children }) => {
       isEditMode, setIsEditMode,
       getText, setText,
       setStyleVar, overrides,
+      getElementStyle, setElementStyle, resetElementStyle,
       resetAll,
     }}>
       {children}

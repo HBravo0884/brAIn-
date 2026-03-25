@@ -622,7 +622,8 @@ const KnowledgeBase = () => {
             <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">brAIn · Knowledge</p>
           </div>
           <EditableText id="title-knowledge" defaultText="Knowledge Base" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
-          <p className="text-indigo-100/80 text-sm mt-1.5 font-medium">Policies, SOPs, and email threads — feeding your AI assistant</p>
+          <EditableText id="knowledge-subtitle" defaultText="Policies, SOPs, and email threads — feeding your AI assistant" dark
+            tag="p" className="text-indigo-100/80 text-sm mt-1.5 font-medium" />
         </div>
       </div>
 

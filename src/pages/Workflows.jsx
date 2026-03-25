@@ -27,7 +27,7 @@ const Workflows = () => {
     <div>
       <div className="mb-8">
         <EditableText id="title-workflows" defaultText="Workflows" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
-        <p className="text-gray-600">Visualize and manage your project workflows</p>
+        <EditableText id="workflows-subtitle" defaultText="Visualize and manage your project workflows" tag="p" className="text-gray-600" />
       </div>
 
       {/* View Selector */}

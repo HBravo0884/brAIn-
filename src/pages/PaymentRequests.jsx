@@ -169,7 +169,7 @@ const PaymentRequests = () => {
       <div className="flex items-center justify-between mb-8">
         <div>
           <EditableText id="title-payments" defaultText="Payment Requests (PRF)" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
-          <p className="text-gray-600">Manage RWJF grant payment request forms and approvals</p>
+          <EditableText id="payments-subtitle" defaultText="Manage RWJF grant payment request forms and approvals" tag="p" className="text-gray-600" />
         </div>
         <Button
           variant="primary"

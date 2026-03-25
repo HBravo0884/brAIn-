@@ -136,7 +136,7 @@ const QuickToDo = () => {
     <div className="space-y-6">
       <div>
         <EditableText id="title-quick-todo" defaultText="Personal To-Do" tag="h1" className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100" />
-        <p className="text-gray-600 dark:text-gray-400">Personal checklist — quick captures that don't need a full grant task card</p>
+        <EditableText id="todo-subtitle" defaultText="Personal checklist — quick captures that don't need a full grant task card" tag="p" className="text-gray-600 dark:text-gray-400" />
       </div>
 
       {/* Add New Item */}

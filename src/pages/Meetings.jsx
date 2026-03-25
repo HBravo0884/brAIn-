@@ -320,7 +320,7 @@ ${meeting.actionItems || 'None'}
           <div>
             <p className="text-[10px] font-bold text-white/75 uppercase tracking-widest mb-2">brAIn · Team & Schedule</p>
             <EditableText id="title-meetings" defaultText="Meetings" tag="h1" dark={true} className="text-3xl font-black text-white tracking-tight leading-none" />
-            <p className="text-white/75 text-sm mt-1.5 font-medium">Transcription support for NotebookLM analysis</p>
+            <EditableText id="meetings-subtitle" defaultText="Transcription support for NotebookLM analysis" dark tag="p" className="text-white/75 text-sm mt-1.5 font-medium" />
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <button

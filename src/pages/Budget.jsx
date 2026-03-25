@@ -133,7 +133,8 @@ const Budget = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <EditableText id="title-budget" defaultText="Budget Tracking" tag="h1" className="text-3xl font-bold text-gray-900 mb-2" />
-          <p className="text-gray-600">Monitor your financial allocations and spending</p>
+          <EditableText id="budget-subtitle" defaultText="Monitor your financial allocations and spending"
+            tag="p" className="text-gray-600" />
         </div>
         <div className="flex gap-3">
           <Button
