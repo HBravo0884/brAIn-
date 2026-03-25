@@ -1,25 +1,21 @@
-import Anthropic from '@anthropic-ai/sdk';
-
 /**
  * Claude API caller.
- * If a key is saved in localStorage, calls Anthropic directly (no proxy, no timeout limit).
- * Otherwise routes through the Netlify proxy (ANTHROPIC_API_KEY server-side, 26s limit).
+ * Always routes through the Netlify proxy to avoid CORS issues.
+ * If a user-provided key is saved in localStorage, it is sent to the proxy
+ * so the user's own key is used instead of the server default.
  */
 const claudeFetch = async (payload) => {
   const localKey =
     localStorage.getItem('brain_anthropic_api_key') ||
-    import.meta.env.VITE_ANTHROPIC_API_KEY;
+    import.meta.env.VITE_ANTHROPIC_API_KEY ||
+    '';
 
-  // Direct SDK call — bypasses Netlify 26s timeout
-  if (localKey) {
-    const client = new Anthropic({ apiKey: localKey, dangerouslyAllowBrowser: true });
-    return client.messages.create(payload);
-  }
-
-  // No local key — use Netlify proxy
   const res = await fetch('/api/claude', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(localKey ? { 'x-user-api-key': localKey } : {}),
+    },
     body: JSON.stringify(payload),
   });
   if (res.ok) return res.json();
