@@ -1,22 +1,38 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, Type } from '@google/genai';
 
 /**
- * Claude API caller.
- * Bypasses Netlify timeout via direct browser SDK calls.
+ * Gemini API caller.
+ * Bypasses Netlify 26s timeout via direct client-side fetch.
  */
-const claudeFetch = async (payload) => {
+const geminiFetch = async (payload, isStructured = false, responseSchema = null) => {
   const localKey =
-    localStorage.getItem('brain_anthropic_api_key') ||
-    localStorage.getItem('brain_gemini_api_key') || 
-    import.meta.env.VITE_MEMO_CLERK_KEY || 
+    localStorage.getItem('brain_gemini_api_key') ||
+    localStorage.getItem('brain_anthropic_api_key') || // Legacy fallback so user isn't logged out
+    import.meta.env.VITE_MEMO_CLERK_KEY || // Fallback
     import.meta.env.VITE_ANTHROPIC_API_KEY;
 
   if (!localKey) {
-    throw new Error(`Claude API error: API key missing. Please insert your Claude key in the Settings page.`);
+    throw new Error(`Gemini API error: API key missing. Please insert your Gemini key in the Settings page.`);
   }
 
-  const client = new Anthropic({ apiKey: localKey, dangerouslyAllowBrowser: true });
-  return client.messages.create(payload);
+  const ai = new GoogleGenAI({ apiKey: localKey });
+  
+  const config = {
+    temperature: 0.1,
+  };
+  
+  if (isStructured && responseSchema) {
+    config.responseMimeType = "application/json";
+    config.responseSchema = responseSchema;
+  }
+
+  const response = await ai.models.generateContent({
+    model: payload.model || 'gemini-2.5-flash',
+    contents: payload.prompt,
+    config: config
+  });
+
+  return response.text;
 };
 
 /**
@@ -24,14 +40,12 @@ const claudeFetch = async (payload) => {
  */
 export const askClaude = async (prompt, options = {}) => {
   try {
-    const message = await claudeFetch({
-      model: options.model || 'claude-3-haiku-20240307',
-      max_tokens: options.max_tokens || 4096,
-      messages: [{ role: 'user', content: prompt }],
+    return await geminiFetch({
+      model: options.model || 'gemini-2.5-flash',
+      prompt: prompt,
     });
-    return message.content[0].text;
   } catch (error) {
-    console.error('Claude API error:', error);
+    console.error('Gemini API error:', error);
     throw error;
   }
 };
@@ -2749,43 +2763,47 @@ export const extractMeetingFromTranscript = async (transcript) => {
   const today = new Date().toISOString().split('T')[0];
   const foundDate = prescanDate(transcript);
   
-  const prompt = `You are a strict data-extraction AI parsing a meeting transcript.
-You MUST output ONLY a pure JSON object. Do not include any text before or after the JSON.
-Do not use markdown backticks around the json. 
-
-Transcript for context:
+  const prompt = `You are extracting structured meeting data from a transcript.
+  
+Transcript:
 ${transcript.slice(0, 8000)}
 
-Return EXACTLY this JSON structure:
-{
-  "title": "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')",
-  "date": "${foundDate || today}",
-  "attendees": "Comma-separated list of attendee names found in transcript",
-  "agenda": "Main agenda items as a short bulleted list (use - prefix), max 5 items",
-  "notes": "Key discussion points and important context — 3 to 8 bullet points (use - prefix)",
-  "actionItems": "Tasks assigned to specific people — one per line with owner (use - Owner: task format), max 10",
-  "agreements": "Formal decisions, group commitments, or policy agreements reached — one per line (use - prefix), max 8",
-  "centralTopic": "One sentence describing the central topic or purpose of this meeting",
-  "stakeholders": [
-    {
-      "name": "Full name as it appears in transcript",
-      "role": "Their title/role if mentioned, else empty string",
-      "keyStatements": "What they said or contributed — 1 to 3 concise bullet points (use - prefix)",
-      "commitments": "Specific things they personally agreed to do or promised, or empty string"
+Extract attendees, agenda, notes, action items, agreements, central topic, and stakeholders based on the transcript.
+${foundDate ? `The meeting date is exactly ${foundDate}.` : `If date is absent use ${today}.`}
+`;
+
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, description: "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')" },
+      date: { type: Type.STRING, description: "YYYY-MM-DD" },
+      attendees: { type: Type.STRING, description: "Comma-separated list of attendee names found in transcript" },
+      agenda: { type: Type.STRING, description: "Main agenda items as a short bulleted list (use - prefix), max 5 items" },
+      notes: { type: Type.STRING, description: "Key discussion points and important context — 3 to 8 bullet points (use - prefix)" },
+      actionItems: { type: Type.STRING, description: "Tasks assigned to specific people — one per line with owner (use - Owner: task format), max 10" },
+      agreements: { type: Type.STRING, description: "Formal decisions, group commitments, or policy agreements reached — one per line (use - prefix), max 8" },
+      centralTopic: { type: Type.STRING, description: "One sentence describing the central topic or purpose of this meeting" },
+      stakeholders: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, description: "Full name as it appears in transcript" },
+            role: { type: Type.STRING, description: "Their title/role if mentioned, else empty string" },
+            keyStatements: { type: Type.STRING, description: "What they said or contributed — 1 to 3 concise bullet points (use - prefix)" },
+            commitments: { type: Type.STRING, description: "Specific things they personally agreed to do or promised, or empty string" }
+          }
+        }
+      }
     }
-  ]
-}`;
+  };
 
-  const message = await claudeFetch({
-    model: 'claude-3-haiku-20240307',
-    max_tokens: 3000,
-    temperature: 0.0,
-    messages: [{ role: 'user', content: prompt }]
-  });
+  const rawJson = await geminiFetch({
+    model: 'gemini-2.5-flash',
+    prompt: prompt
+  }, true, schema);
 
-  const rawJson = message.content[0].text;
-  const cleanedText = rawJson.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-  const parsed = JSON.parse(cleanedText);
+  const parsed = JSON.parse(rawJson);
 
   const notesLines = [];
   if (parsed.centralTopic) notesLines.push(`Central Topic: ${parsed.centralTopic}\n`);
