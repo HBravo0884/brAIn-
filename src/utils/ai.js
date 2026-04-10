@@ -1,48 +1,51 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, Type } from '@google/genai';
 
 /**
- * Claude API caller.
- * If a key is saved in localStorage, calls Anthropic directly (no proxy, no timeout limit).
- * Otherwise routes through the Netlify proxy (ANTHROPIC_API_KEY server-side, 26s limit).
+ * Gemini API caller.
+ * Bypasses Netlify 26s timeout via direct client-side fetch.
  */
-const claudeFetch = async (payload) => {
+const geminiFetch = async (payload, isStructured = false, responseSchema = null) => {
   const localKey =
-    localStorage.getItem('brain_anthropic_api_key') ||
+    localStorage.getItem('brain_gemini_api_key') ||
+    localStorage.getItem('brain_anthropic_api_key') || // Legacy fallback so user isn't logged out
+    import.meta.env.VITE_MEMO_CLERK_KEY || // Fallback
     import.meta.env.VITE_ANTHROPIC_API_KEY;
 
-  // Direct SDK call — bypasses Netlify 26s timeout
-  if (localKey) {
-    const client = new Anthropic({ apiKey: localKey, dangerouslyAllowBrowser: true });
-    return client.messages.create(payload);
+  if (!localKey) {
+    throw new Error(`Gemini API error: API key missing. Please insert your Gemini key in the Settings page.`);
   }
 
-  // No local key — use Netlify proxy
-  const res = await fetch('/api/claude', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+  const ai = new GoogleGenAI({ apiKey: localKey });
+  
+  const config = {
+    temperature: 0.1,
+  };
+  
+  if (isStructured && responseSchema) {
+    config.responseMimeType = "application/json";
+    config.responseSchema = responseSchema;
+  }
+
+  const response = await ai.models.generateContent({
+    model: payload.model || 'gemini-2.5-flash',
+    contents: payload.prompt,
+    config: config
   });
-  if (res.ok) return res.json();
-  const errText = await res.text();
-  throw new Error(`Claude proxy error ${res.status}: ${errText}`);
+
+  return response.text;
 };
 
 /**
- * Call Claude AI with a prompt
- * @param {string} prompt - The prompt to send to Claude
- * @param {Object} options - Additional options (model, max_tokens, etc.)
- * @returns {Promise<string>} - Claude's response
+ * Call AI with a prompt (Legacy naming retained to easily integrate with the rest of the app)
  */
 export const askClaude = async (prompt, options = {}) => {
   try {
-    const message = await claudeFetch({
-      model: options.model || 'claude-sonnet-4-6',
-      max_tokens: options.max_tokens || 4096,
-      messages: [{ role: 'user', content: prompt }],
+    return await geminiFetch({
+      model: options.model || 'gemini-2.5-flash',
+      prompt: prompt,
     });
-    return message.content[0].text;
   } catch (error) {
-    console.error('Claude API error:', error);
+    console.error('Gemini API error:', error);
     throw error;
   }
 };
@@ -2759,52 +2762,48 @@ const prescanDate = (text) => {
 export const extractMeetingFromTranscript = async (transcript) => {
   const today = new Date().toISOString().split('T')[0];
   const foundDate = prescanDate(transcript);
-  const dateInstruction = foundDate
-    ? `"date": "${foundDate}"  ← date was pre-detected from transcript; use this exact value`
-    : `"date": "YYYY-MM-DD — search transcript carefully for any date mention; if truly absent use '${today}'"`;
+  
+  const prompt = `You are extracting structured meeting data from a transcript.
+  
+Transcript:
+${transcript.slice(0, 8000)}
 
-  const prompt = `You are extracting structured meeting data from a transcript. Return ONLY valid JSON with no markdown fences.
+Extract attendees, agenda, notes, action items, agreements, central topic, and stakeholders based on the transcript.
+${foundDate ? `The meeting date is exactly ${foundDate}.` : `If date is absent use ${today}.`}
+`;
 
-Transcript (first 6000 chars):
-${transcript.slice(0, 6000)}
-
-Extract and return this exact JSON structure:
-{
-  "title": "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')",
-  "date": ${dateInstruction},
-  "attendees": "Comma-separated list of attendee names found in transcript",
-  "agenda": "Main agenda items as a short bulleted list (use - prefix), max 5 items",
-  "notes": "Key discussion points and important context — 3 to 8 bullet points (use - prefix)",
-  "actionItems": "Tasks assigned to specific people — one per line with owner (use - Owner: task format), max 10",
-  "agreements": "Formal decisions, group commitments, or policy agreements reached — one per line (use - prefix), max 8",
-  "centralTopic": "One sentence describing the central topic or purpose of this meeting",
-  "stakeholders": [
-    {
-      "name": "Full name as it appears in transcript",
-      "role": "Their title/role if mentioned, else empty string",
-      "keyStatements": "What they said or contributed — 1 to 3 concise bullet points (use - prefix)",
-      "commitments": "Specific things they personally agreed to do or promised, or empty string"
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, description: "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')" },
+      date: { type: Type.STRING, description: "YYYY-MM-DD" },
+      attendees: { type: Type.STRING, description: "Comma-separated list of attendee names found in transcript" },
+      agenda: { type: Type.STRING, description: "Main agenda items as a short bulleted list (use - prefix), max 5 items" },
+      notes: { type: Type.STRING, description: "Key discussion points and important context — 3 to 8 bullet points (use - prefix)" },
+      actionItems: { type: Type.STRING, description: "Tasks assigned to specific people — one per line with owner (use - Owner: task format), max 10" },
+      agreements: { type: Type.STRING, description: "Formal decisions, group commitments, or policy agreements reached — one per line (use - prefix), max 8" },
+      centralTopic: { type: Type.STRING, description: "One sentence describing the central topic or purpose of this meeting" },
+      stakeholders: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, description: "Full name as it appears in transcript" },
+            role: { type: Type.STRING, description: "Their title/role if mentioned, else empty string" },
+            keyStatements: { type: Type.STRING, description: "What they said or contributed — 1 to 3 concise bullet points (use - prefix)" },
+            commitments: { type: Type.STRING, description: "Specific things they personally agreed to do or promised, or empty string" }
+          }
+        }
+      }
     }
-  ]
-}
+  };
 
-Rules:
-- Attendees: look for names in speaker labels (e.g. 'John:', 'DR. SMITH:'), headers, or intro statements
-- Date: look for explicit dates mentioned in opening lines or filename hints
-- Action items: owned tasks — 'will', 'need to', 'action:', 'follow up', 'next steps'
-- Agreements: group decisions — 'we agreed', 'it was decided', 'going forward', 'policy is'
-- Stakeholders: only include people who actually spoke or are explicitly named; max 8 people
-- If a field cannot be determined, use an empty string or empty array
-- Never invent information not present in the transcript`;
+  const rawJson = await geminiFetch({
+    model: 'gemini-2.5-flash',
+    prompt: prompt
+  }, true, schema);
 
-  const response = await claudeFetch({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2000,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const raw = response.content[0].text.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-  const parsed = JSON.parse(raw);
+  const parsed = JSON.parse(rawJson);
 
   const notesLines = [];
   if (parsed.centralTopic) notesLines.push(`Central Topic: ${parsed.centralTopic}\n`);

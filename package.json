@@ -11,7 +11,7 @@
     "lint": "eslint . --ext js,jsx"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/genai": "^1.49.0",
     "@hello-pangea/dnd": "^16.6.0",
     "@supabase/supabase-js": "^2.98.0",
     "date-fns": "^3.3.1",
