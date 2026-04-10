@@ -2777,11 +2777,31 @@ ${foundDate ? `The meeting date is exactly ${foundDate}.` : `If date is absent u
     properties: {
       title: { type: Type.STRING, description: "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')" },
       date: { type: Type.STRING, description: "YYYY-MM-DD" },
-      attendees: { type: Type.STRING, description: "Comma-separated list of attendee names found in transcript" },
-      agenda: { type: Type.STRING, description: "Main agenda items as a short bulleted list (use - prefix), max 5 items" },
-      notes: { type: Type.STRING, description: "Key discussion points and important context — 3 to 8 bullet points (use - prefix)" },
-      actionItems: { type: Type.STRING, description: "Tasks assigned to specific people — one per line with owner (use - Owner: task format), max 10" },
-      agreements: { type: Type.STRING, description: "Formal decisions, group commitments, or policy agreements reached — one per line (use - prefix), max 8" },
+      attendees: { 
+        type: Type.ARRAY, 
+        items: { type: Type.STRING },
+        description: "List of attendee names"
+      },
+      agenda: { 
+        type: Type.ARRAY, 
+        items: { type: Type.STRING },
+        description: "Main agenda items (max 5 items)"
+      },
+      notes: { 
+        type: Type.ARRAY, 
+        items: { type: Type.STRING },
+        description: "Key discussion points and important context (3 to 8 points)"
+      },
+      actionItems: { 
+        type: Type.ARRAY, 
+        items: { type: Type.STRING },
+        description: "Tasks assigned to specific people (Format: 'Owner Name: task description', max 10)"
+      },
+      agreements: { 
+        type: Type.ARRAY, 
+        items: { type: Type.STRING },
+        description: "Formal decisions or policy agreements reached (max 8)"
+      },
       centralTopic: { type: Type.STRING, description: "One sentence describing the central topic or purpose of this meeting" },
       stakeholders: {
         type: Type.ARRAY,
@@ -2807,17 +2827,30 @@ ${foundDate ? `The meeting date is exactly ${foundDate}.` : `If date is absent u
 
   const notesLines = [];
   if (parsed.centralTopic) notesLines.push(`Central Topic: ${parsed.centralTopic}\n`);
-  if (parsed.notes) notesLines.push(parsed.notes);
-  if (parsed.agreements) notesLines.push(`\n## Agreements\n${parsed.agreements}`);
+  
+  if (Array.isArray(parsed.notes)) {
+    notesLines.push(parsed.notes.map(n => `- ${n}`).join('\n'));
+  } else if (parsed.notes) {
+    notesLines.push(parsed.notes);
+  }
+
+  let agreementsStr = '';
+  if (Array.isArray(parsed.agreements) && parsed.agreements.length > 0) {
+    agreementsStr = parsed.agreements.map(a => `- ${a}`).join('\n');
+    notesLines.push(`\n## Agreements\n${agreementsStr}`);
+  } else if (parsed.agreements) {
+    agreementsStr = parsed.agreements;
+    notesLines.push(`\n## Agreements\n${parsed.agreements}`);
+  }
 
   return {
     title: parsed.title || '',
     date: parsed.date || foundDate || today,
-    attendees: parsed.attendees || '',
-    agenda: parsed.agenda || '',
+    attendees: Array.isArray(parsed.attendees) ? parsed.attendees.join(', ') : (parsed.attendees || ''),
+    agenda: Array.isArray(parsed.agenda) ? parsed.agenda.map(a => `- ${a}`).join('\n') : (parsed.agenda || ''),
     notes: notesLines.join('\n'),
-    actionItems: parsed.actionItems || '',
-    agreements: parsed.agreements || '',
+    actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems.map(a => `- ${a}`).join('\n') : (parsed.actionItems || ''),
+    agreements: agreementsStr,
     stakeholders: Array.isArray(parsed.stakeholders) ? parsed.stakeholders : [],
     transcription: transcript,
   };
