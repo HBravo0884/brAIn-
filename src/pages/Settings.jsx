@@ -115,15 +115,15 @@ const Settings = () => {
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('brain_gemini_api_key') || localStorage.getItem('brain_anthropic_api_key') || '';
+    const stored = localStorage.getItem('brain_anthropic_api_key') || localStorage.getItem('brain_gemini_api_key') || '';
     setApiKey(stored);
   }, []);
 
   const handleSaveApiKey = () => {
     if (apiKey.trim()) {
-      localStorage.setItem('brain_gemini_api_key', apiKey.trim());
+      localStorage.setItem('brain_anthropic_api_key', apiKey.trim());
     } else {
-      localStorage.removeItem('brain_gemini_api_key');
+      localStorage.removeItem('brain_anthropic_api_key');
     }
     setApiKeySaved(true);
     setTimeout(() => setApiKeySaved(false), 3000);
@@ -409,9 +409,9 @@ const Settings = () => {
                   <Key size={20} className="text-primary-600" />
                 </div>
                 <div className="text-left">
-                  <h3 className="font-semibold text-gray-900">Gemini AI Key</h3>
+                  <h3 className="font-semibold text-gray-900">Claude AI Key</h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {apiKey ? 'Key configured — active on client edge' : 'Optional — click to configure'}
+                    {apiKey ? 'API Key configured' : 'Optional — click to configure'}
                   </p>
                 </div>
               </div>
@@ -428,7 +428,7 @@ const Settings = () => {
                     type="password"
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
+                    placeholder="sk-ant-..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-400 outline-none font-mono"
                   />
                 </div>
@@ -443,7 +443,7 @@ const Settings = () => {
                 </button>
                 {apiKey && (
                   <p className="text-xs text-green-600 text-center">
-                    Key saved — runs strictly local on browser for ultra-fast performance
+                    Key saved
                   </p>
                 )}
               </div>
@@ -630,7 +630,7 @@ const Settings = () => {
                   >
                     Clear Log
                   </button>
-                  <p className="text-xs text-gray-500">Estimates only — see Google AI Studio for exact billing.</p>
+                  <p className="text-xs text-gray-500">Estimates only — see Anthropic console for exact billing.</p>
                 </div>
               );
             })()}
