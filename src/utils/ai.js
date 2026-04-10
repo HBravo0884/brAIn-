@@ -2760,7 +2760,8 @@ const prescanDate = (text) => {
 };
 
 export const extractMeetingFromTranscript = async (transcript) => {
-  const today = new Date().toISOString().split('T')[0];
+  // Use YYYY-MM-DDTHH:mm for the datetime-local input
+  const today = new Date().toISOString().slice(0, 16); 
   const foundDate = prescanDate(transcript);
   
   const prompt = `You are extracting structured meeting data from a transcript.
@@ -2769,14 +2770,14 @@ Transcript:
 ${transcript.slice(0, 8000)}
 
 Extract attendees, agenda, notes, action items, agreements, central topic, and stakeholders based on the transcript.
-${foundDate ? `The meeting date is exactly ${foundDate}.` : `If date is absent use ${today}.`}
+${foundDate ? `The meeting date is exactly ${foundDate}. Provide a strict ISO datetime (YYYY-MM-DDTHH:mm).` : `If date is absent use ${today}. Provide a strict ISO datetime (YYYY-MM-DDTHH:mm).`}
 `;
 
   const schema = {
     type: Type.OBJECT,
     properties: {
       title: { type: Type.STRING, description: "Short descriptive meeting title (e.g. 'RWJF Q1 Budget Review' or 'PI Sync — MGL')" },
-      date: { type: Type.STRING, description: "YYYY-MM-DD" },
+      date: { type: Type.STRING, description: "Strict ISO datetime string: YYYY-MM-DDTHH:mm" },
       attendees: { 
         type: Type.ARRAY, 
         items: { type: Type.STRING },
@@ -2845,7 +2846,7 @@ ${foundDate ? `The meeting date is exactly ${foundDate}.` : `If date is absent u
 
   return {
     title: parsed.title || '',
-    date: parsed.date || foundDate || today,
+    date: parsed.date || (foundDate ? `${foundDate}T12:00` : today),
     attendees: Array.isArray(parsed.attendees) ? parsed.attendees.join(', ') : (parsed.attendees || ''),
     agenda: Array.isArray(parsed.agenda) ? parsed.agenda.map(a => `- ${a}`).join('\n') : (parsed.agenda || ''),
     notes: notesLines.join('\n'),
